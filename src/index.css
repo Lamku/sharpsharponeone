@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-midnight text-slate-200 font-sans antialiased;
+    background-color: #0B0E14;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(212, 175, 55, 0.06) 0%, transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+  input, select, textarea {
+    @apply outline-none;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-obsidian-border rounded-full;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-obsidian border border-obsidian-border/60 rounded-2xl shadow-card backdrop-blur-sm;
+  }
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:border-gold/40 hover:shadow-gold-glow;
+  }
+  .input-field {
+    @apply w-full bg-midnight-50/70 border border-obsidian-border/80 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 transition-all duration-200 focus:border-gold/60 focus:ring-1 focus:ring-gold/40;
+  }
+  .btn-gold {
+    @apply bg-gradient-to-r from-gold-dark to-gold-light text-midnight font-semibold rounded-xl py-3.5 px-6 transition-all duration-300 hover:shadow-gold-glow hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none;
+  }
+  .btn-emerald {
+    @apply bg-gradient-to-r from-emerald-dark to-emerald-light text-white font-semibold rounded-xl py-3.5 px-6 transition-all duration-300 hover:shadow-emerald-glow hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply bg-obsidian-light/60 border border-obsidian-border text-slate-200 font-medium rounded-xl py-3.5 px-6 transition-all duration-200 hover:border-gold/40 hover:text-gold active:scale-[0.98];
+  }
+  .label-text {
+    @apply block text-sm font-medium text-slate-400 mb-1.5;
+  }
+}
