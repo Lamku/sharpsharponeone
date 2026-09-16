@@ -46,18 +46,73 @@ export const DepositCallback: React.FC = () => {
         const result = await verifyPayment(reference);
         console.log('[DepositCallback] verify result:', result);
 
-        if (!result.success || !result.userId) {
+        if (!result.success) {
           setStatus('failed');
           setMessage(result.message || 'Payment verification failed.');
           return;
         }
 
         const paidAmount = result.amount || 0;
-        const userId = result.userId;
+        let userId = result.userId || null;
+
+        // ==================================================
+        // STEP 1B: Recover userId from deposit_intents
+        //          (for Paystack Storefront payments, metadata is not sent)
+        // ==================================================
+        let intentId: string | null = null;
+
+        if (!userId) {
+          console.log('[DepositCallback] No userId from Paystack — looking up intent');
+          try {
+            // Try sessionStorage first (same browser that created the intent)
+            let sessionUserId: string | null = null;
+            try {
+              sessionUserId = sessionStorage.getItem('deposit_intent_user');
+            } catch {}
+
+            if (sessionUserId) {
+              userId = sessionUserId;
+              console.log('[DepositCallback] Recovered userId from sessionStorage:', userId);
+            } else {
+              // Fallback: query the most recent unused intent in Firestore
+              const intentQuery = query(
+                collection(db, 'deposit_intents'),
+                where('used', '==', false)
+              );
+              const intentSnap = await getDocs(intentQuery);
+
+              if (!intentSnap.empty) {
+                // Sort by created_at descending and take the newest
+                const sorted = intentSnap.docs
+                  .map((d) => ({ id: d.id, ...d.data() }))
+                  .sort((a: any, b: any) => {
+                    const at = a.created_at?.toDate?.()?.getTime?.() || 0;
+                    const bt = b.created_at?.toDate?.()?.getTime?.() || 0;
+                    return bt - at;
+                  });
+
+                userId = (sorted[0] as any).user_id as string;
+                intentId = sorted[0].id as string;
+                console.log('[DepositCallback] Recovered userId from Firestore intent:', userId);
+              }
+            }
+          } catch (intentErr) {
+            console.warn('[DepositCallback] Intent lookup failed:', intentErr);
+          }
+        }
+
+        if (!userId) {
+          setStatus('failed');
+          setMessage(
+            'Could not determine which user this payment belongs to. Please contact support with your Paystack reference.'
+          );
+          return;
+        }
+
         setAmount(paidAmount);
 
         // ==================================================
-        // STEP 2: Find the paystack_refs record
+        // STEP 2: Find the paystack_refs record (if any)
         // ==================================================
         let refDocId: string | null = null;
         let txId: string | null = null;
@@ -80,6 +135,28 @@ export const DepositCallback: React.FC = () => {
           }
         } catch (refErr) {
           console.warn('[DepositCallback] Could not read paystack_refs:', refErr);
+        }
+
+        // ⭐ Also check if this reference was already processed before
+        //    (belt-and-suspenders for storefront flow)
+        if (!alreadyCredited) {
+          try {
+            const txQuery = query(
+              collection(db, 'transactions'),
+              where('reference', '==', reference),
+              where('type', '==', 'deposit')
+            );
+            const txSnap = await getDocs(txQuery);
+            if (!txSnap.empty) {
+              const txData = txSnap.docs[0].data();
+              if (txData.status === 'successful' && txData.credited === true) {
+                alreadyCredited = true;
+                console.log('[DepositCallback] Already credited (found in transactions)');
+              }
+            }
+          } catch (dupErr) {
+            console.warn('[DepositCallback] Duplicate check failed:', dupErr);
+          }
         }
 
         // ==================================================
@@ -115,6 +192,25 @@ export const DepositCallback: React.FC = () => {
             }
           }
 
+          // Mark intent as used
+          if (intentId) {
+            try {
+              await updateDoc(doc(db, 'deposit_intents', intentId), {
+                used: true,
+                used_at: serverTimestamp(),
+                reference,
+              });
+            } catch (markErr) {
+              console.warn('[DepositCallback] Could not mark intent used:', markErr);
+            }
+          }
+
+          // Clear sessionStorage
+          try {
+            sessionStorage.removeItem('deposit_intent_user');
+            sessionStorage.removeItem('deposit_intent_time');
+          } catch {}
+
           // ⭐ STEP 4B: Pay 40% referral commission (once per referred user)
           try {
             const refResult = await payReferralCommission(userId, paidAmount);
@@ -128,7 +224,8 @@ export const DepositCallback: React.FC = () => {
           } catch (refErr) {
             console.warn('[DepositCallback] Referral payout failed (non-fatal):', refErr);
           }
-            // ⭐ Telegram — notify admin of successful deposit
+
+          // ⭐ Telegram — notify admin of successful deposit
           try {
             const userSnap = await getDoc(doc(db, 'users', userId));
             const userData = userSnap.exists() ? userSnap.data() : null;
@@ -142,8 +239,6 @@ export const DepositCallback: React.FC = () => {
           } catch (tErr) {
             console.warn('[DepositCallback] Telegram notify failed:', tErr);
           }
-
-
         } else {
           console.log('[DepositCallback] Already credited — skipping');
         }
@@ -216,6 +311,23 @@ async function creditUser(userId: string, amount: number, reference: string) {
       portfolio_value: (userData.portfolio_value || 0) + amount,
     });
   });
+
+  // Save the reference on the transaction for dedup later
+  try {
+    await addDoc(collection(db, 'transactions'), {
+      user_id: userId,
+      amount,
+      type: 'deposit',
+      method: 'paystack',
+      description: 'Paystack storefront deposit',
+      reference,
+      status: 'successful',
+      credited: true,
+      created_at: serverTimestamp(),
+    });
+  } catch (txErr) {
+    console.warn('[DepositCallback] Could not save deposit transaction:', txErr);
+  }
 
   try {
     await addDoc(collection(db, 'notifications'), {
@@ -299,7 +411,7 @@ async function payReferralCommission(
         user_id: referrerId,
         title: '💰 Referral Commission Earned',
         message: `You earned ₦${commission.toLocaleString()} (40%) from a referred user's deposit.`,
-        type: 'referral',           // ⭐ changed from 'success'
+        type: 'referral',
         read: false,
         created_at: serverTimestamp(),
       });

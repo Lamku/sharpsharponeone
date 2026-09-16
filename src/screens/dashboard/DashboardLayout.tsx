@@ -22,6 +22,7 @@ import { Logo } from '@/components/Logo';
 import { BottomNav, type TabKey } from '@/components/BottomNav';
 import { DepositSection } from './DepositSection';
 import { SideDrawer } from './SideDrawer';
+import { PaystackStorefront } from './PaystackStorefront';
 
 interface Investment {
   id: string;
@@ -677,27 +678,35 @@ const lastCheckIn = (() => {
             )}
 
             {platformSettings.paystackEnabled && platformSettings.manualDepositEnabled && (
-              <DepositTabs
-                paystack={<DepositSection onClose={() => setShowDeposit(false)} />}
-                manual={
-                  <ManualDepositSection
-                    settings={platformSettings}
-                    onClose={() => setShowDeposit(false)}
-                  />
-                }
-              />
-            )}
+  <DepositTabs
+    paystack={
+      <PaystackStorefront
+        settings={platformSettings}
+        onClose={() => setShowDeposit(false)}
+      />
+    }
+    manual={
+      <ManualDepositSection
+        settings={platformSettings}
+        onClose={() => setShowDeposit(false)}
+      />
+    }
+  />
+)}
 
-            {platformSettings.paystackEnabled && !platformSettings.manualDepositEnabled && (
-              <DepositSection onClose={() => setShowDeposit(false)} />
-            )}
+{platformSettings.paystackEnabled && !platformSettings.manualDepositEnabled && (
+  <PaystackStorefront
+    settings={platformSettings}
+    onClose={() => setShowDeposit(false)}
+  />
+)}
 
-            {!platformSettings.paystackEnabled && platformSettings.manualDepositEnabled && (
-              <ManualDepositSection
-                settings={platformSettings}
-                onClose={() => setShowDeposit(false)}
-              />
-            )}
+{!platformSettings.paystackEnabled && platformSettings.manualDepositEnabled && (
+  <ManualDepositSection
+    settings={platformSettings}
+    onClose={() => setShowDeposit(false)}
+  />
+)}
           </div>
         </div>
       )}

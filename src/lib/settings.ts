@@ -7,14 +7,17 @@ export interface PlatformSettings {
   paystackEnabled: boolean;
   manualDepositEnabled: boolean;
 
+  // ⭐ Paystack Storefront URL (used when Paystack mode is ON)
+  paystackStorefrontUrl: string;
+
   // Manual deposit bank details (shown to users)
   manualBankName: string;
   manualBankAccountNumber: string;
   manualBankAccountName: string;
 
   // Withdrawal mode
-  paystackWithdrawalEnabled: boolean;   // turn ON after CAC upgrade
-  manualWithdrawalEnabled: boolean;     // turn OFF after CAC upgrade
+  paystackWithdrawalEnabled: boolean;
+  manualWithdrawalEnabled: boolean;
 
   updatedAt?: any;
   updatedBy?: string;
@@ -23,25 +26,26 @@ export interface PlatformSettings {
 export const DEFAULT_SETTINGS: PlatformSettings = {
   paystackEnabled: true,
   manualDepositEnabled: false,
+
+  // ⭐ Default storefront URL
+  paystackStorefrontUrl: 'https://paystack.shop/pay/sharpsharpone',
+
   manualBankName: '',
   manualBankAccountNumber: '',
   manualBankAccountName: '',
-  paystackWithdrawalEnabled: false,  // OFF until CAC upgrade
-  manualWithdrawalEnabled: true,      // ON by default
+
+  paystackWithdrawalEnabled: false,
+  manualWithdrawalEnabled: true,
 };
 
 const SETTINGS_DOC = doc(db, 'settings', 'platform');
 
-/**
- * Fetch settings once
- */
 export async function getPlatformSettings(): Promise<PlatformSettings> {
   try {
     const snap = await getDoc(SETTINGS_DOC);
     if (snap.exists()) {
       return { ...DEFAULT_SETTINGS, ...(snap.data() as PlatformSettings) };
     }
-    // Seed defaults on first read
     await setDoc(SETTINGS_DOC, { ...DEFAULT_SETTINGS, updatedAt: serverTimestamp() });
     return DEFAULT_SETTINGS;
   } catch (error) {
@@ -50,9 +54,6 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
   }
 }
 
-/**
- * Update settings (admin only, enforced by Firestore rules)
- */
 export async function updatePlatformSettings(
   patch: Partial<PlatformSettings>,
   adminPhone?: string
@@ -68,9 +69,6 @@ export async function updatePlatformSettings(
   );
 }
 
-/**
- * Subscribe to settings changes (real-time)
- */
 export function subscribeToSettings(
   callback: (settings: PlatformSettings) => void
 ): () => void {

@@ -48,7 +48,7 @@ export function LoginPage() {
 
           <div className="relative p-7">
             <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-            <p className="text-sm text-slate-400 mb-6">Sign in to your TerraVault account</p>
+            <p className="text-sm text-slate-400 mb-6">Sign in to your sharpsharpone account</p>
 
             {error && (
               <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400">

@@ -119,7 +119,7 @@ export function SignUpPage() {
           <div className="relative p-7">
             <h1 className="text-2xl font-bold text-white mb-1">Create account</h1>
             <p className="text-sm text-slate-400 mb-5">
-              Join TerraVault and get a{' '}
+              Join sharpsharpone and get a{' '}
               <span className="text-gold font-semibold">₦1,500 welcome bonus</span> instantly.
             </p>
 

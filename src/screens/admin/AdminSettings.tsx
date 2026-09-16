@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Save, CreditCard, Building2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Settings, Save, CreditCard, Building2, AlertCircle, CheckCircle2, Loader2, Link as LinkIcon } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import {
   PlatformSettings,
@@ -74,10 +74,50 @@ export function AdminSettings() {
 
         <ToggleRow
           label="Paystack Deposits"
-          description="Users pay via Paystack checkout (bank transfer). Wallet credits automatically on webhook."
+          description="Users are redirected to your Paystack storefront to make payment. Wallet credits automatically on webhook."
           checked={settings.paystackEnabled}
           onChange={(v) => set('paystackEnabled', v)}
         />
+
+        {/* ⭐ Storefront URL field — only visible when Paystack is ON */}
+        {settings.paystackEnabled && (
+          <div className="mt-3 p-4 rounded-xl bg-[#0a0a0f] border border-slate-800/50 space-y-3">
+            <div className="flex items-center gap-2">
+              <LinkIcon size={13} className="text-emerald-400" />
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                Paystack Storefront URL
+              </p>
+            </div>
+
+            <Field label="Payment Link">
+              <input
+                type="text"
+                value={settings.paystackStorefrontUrl}
+                onChange={(e) => set('paystackStorefrontUrl', e.target.value)}
+                placeholder="https://paystack.shop/pay/your-store"
+                className="w-full bg-[#0f0f16] border border-slate-800/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500/40"
+              />
+            </Field>
+
+            <div className="flex items-start gap-2 text-[11px] text-sky-400/90">
+              <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+              <span>
+                When users click "Deposit", they'll be redirected to this link to make payment.
+                After payment, they return to your callback page and the wallet is credited automatically.
+              </span>
+            </div>
+
+            <div className="flex items-start gap-2 text-[11px] text-amber-400/80 pt-1">
+              <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+              <span>
+                <b>Important:</b> In Paystack Dashboard → Payment Pages, set the "Success Redirect URL" for this storefront to
+                <code className="ml-1 px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono text-[10px]">
+                  https://sharpsharponeone.onrender.com/deposit-callback
+                </code>
+              </span>
+            </div>
+          </div>
+        )}
 
         <ToggleRow
           label="Manual Bank Transfer Deposits"

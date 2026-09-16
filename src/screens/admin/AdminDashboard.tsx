@@ -5,7 +5,7 @@ import {
   LogOut, Search, CheckCircle2, XCircle, Clock, Wallet,
   Eye, Ban, RefreshCw, ChevronRight, Plus, Pencil, Trash2,
   Send, Bell, Package, Menu, X, UserCheck, UserX, Activity,
-  Lock, Unlock, History, Gift, Sparkles, Settings, DollarSign, 
+  Lock, Unlock, History, Gift, Sparkles, Settings, DollarSign, AlertCircle,
 } from 'lucide-react';
 import { useAdminAuth } from '@/context/AdminAuthContext';
 import { db } from '@/lib/firebase';
@@ -149,6 +149,7 @@ export function AdminDashboard() {
   const [planModal, setPlanModal] = useState<{ mode: 'create' | 'edit'; plan?: Plan } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Plan | null>(null);
   const [notifyModal, setNotifyModal] = useState<{ user: UserProfile } | null>(null);
+  const [broadcastModal, setBroadcastModal] = useState(false);
 
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -776,6 +777,101 @@ try {
     setActionLoading(null);
   };
 
+  // ============ DELETE WITHDRAWAL ============
+const handleDeleteWithdrawal = async (withdrawalId: string) => {
+  const confirmed = window.confirm(
+    'Are you sure you want to delete this withdrawal record? This cannot be undone.'
+  );
+  if (!confirmed) return;
+
+  setActionLoading(withdrawalId);
+  try {
+    await deleteDoc(doc(db, 'withdrawals', withdrawalId));
+    setWithdrawals((prev) => prev.filter((w) => w.id !== withdrawalId));
+    alert('✅ Withdrawal deleted.');
+  } catch (error) {
+    console.error('Error deleting withdrawal:', error);
+    alert('Failed to delete withdrawal.');
+  }
+  setActionLoading(null);
+};
+
+// ============ DELETE DEPOSIT ============
+const handleDeleteDeposit = async (depositId: string) => {
+  const confirmed = window.confirm(
+    'Are you sure you want to delete this deposit record? This cannot be undone.'
+  );
+  if (!confirmed) return;
+
+  setActionLoading(depositId);
+  try {
+    await deleteDoc(doc(db, 'transactions', depositId));
+    setDeposits((prev) => prev.filter((d) => d.id !== depositId));
+    alert('✅ Deposit deleted.');
+  } catch (error) {
+    console.error('Error deleting deposit:', error);
+    alert('Failed to delete deposit.');
+  }
+  setActionLoading(null);
+};
+
+// ============ DELETE TRANSACTION ============
+const handleDeleteTransaction = async (transactionId: string) => {
+  const confirmed = window.confirm(
+    'Are you sure you want to delete this transaction? This cannot be undone.'
+  );
+  if (!confirmed) return;
+
+  setActionLoading(transactionId);
+  try {
+    await deleteDoc(doc(db, 'transactions', transactionId));
+    setTransactions((prev) => prev.filter((t) => t.id !== transactionId));
+    alert('✅ Transaction deleted.');
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    alert('Failed to delete transaction.');
+  }
+  setActionLoading(null);
+};
+
+  // ============ BROADCAST TO ALL USERS ============
+const handleSendToAllUsers = async (title: string, message: string, type: string) => {
+  setActionLoading('broadcast');
+  try {
+    // Send in parallel batches of 50 to avoid overwhelming Firestore
+    const BATCH_SIZE = 50;
+    const chunks: UserProfile[][] = [];
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      chunks.push(users.slice(i, i + BATCH_SIZE));
+    }
+
+    let sent = 0;
+    for (const chunk of chunks) {
+      await Promise.all(
+        chunk.map((u) =>
+          addDoc(collection(db, 'notifications'), {
+            user_id: u.id,
+            title,
+            message,
+            type,
+            read: false,
+            created_at: serverTimestamp(),
+            sent_by: admin?.phone || 'admin',
+            broadcast: true,
+          })
+        )
+      );
+      sent += chunk.length;
+    }
+
+    setBroadcastModal(false);
+    alert(`✅ Broadcast sent to ${sent} user${sent !== 1 ? 's' : ''}!`);
+  } catch (error) {
+    console.error('Error broadcasting:', error);
+    alert('Failed to broadcast. Please try again.');
+  }
+  setActionLoading(null);
+};
   // ============ FILTERS ============
   const filteredUsers = users.filter(u =>
     u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1154,6 +1250,18 @@ try {
     </button>
   </div>
 )}
+
+
+{/* ⭐ Delete button — always visible at the bottom of each withdrawal card */}
+<div className="mt-2 flex justify-end">
+  <button
+    onClick={() => handleDeleteWithdrawal(w.id)}
+    disabled={actionLoading === w.id}
+    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-400 text-[11px] font-semibold hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-400 transition-all disabled:opacity-50"
+  >
+    <Trash2 size={11} /> Delete record
+  </button>
+</div>
                       </div>
                     ))}
                     {filteredWithdrawals.length === 0 && (
@@ -1215,6 +1323,17 @@ try {
                             </button>
                           </div>
                         ) : null}
+
+                        {/* ⭐ Delete button — always visible */}
+<div className="mt-2 flex justify-end">
+  <button
+    onClick={() => handleDeleteDeposit(d.id)}
+    disabled={actionLoading === d.id}
+    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-400 text-[11px] font-semibold hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-400 transition-all disabled:opacity-50"
+  >
+    <Trash2 size={11} /> Delete record
+  </button>
+</div>
                       </div>
                     ))}
                     {filteredDeposits.length === 0 && (
@@ -1334,11 +1453,12 @@ try {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-800/50 text-[11px] uppercase tracking-wider text-slate-500">
-                            <th className="px-4 py-3 text-left font-semibold">Type</th>
-                            <th className="px-4 py-3 text-left font-semibold">Description</th>
-                            <th className="px-4 py-3 text-right font-semibold">Amount</th>
-                            <th className="px-4 py-3 text-right font-semibold">Date</th>
-                          </tr>
+  <th className="px-4 py-3 text-left font-semibold">Type</th>
+  <th className="px-4 py-3 text-left font-semibold">Description</th>
+  <th className="px-4 py-3 text-right font-semibold">Amount</th>
+  <th className="px-4 py-3 text-right font-semibold">Date</th>
+  <th className="px-4 py-3 text-center font-semibold">Action</th>
+</tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/30">
                           {transactions
@@ -1349,15 +1469,25 @@ try {
                             .slice(0, 100)
                             .map((t) => (
                               <tr key={t.id} className="hover:bg-slate-800/20">
-                                <td className="px-4 py-3">
-                                  <span className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-800/50 text-[10px] font-semibold uppercase tracking-wide">
-                                    {t.type}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-slate-300 text-xs">{t.description}</td>
-                                <td className="px-4 py-3 text-right font-semibold">{formatNaira(t.amount)}</td>
-                                <td className="px-4 py-3 text-right text-slate-500 text-xs">{formatTimeAgo(t.created_at)}</td>
-                              </tr>
+  <td className="px-4 py-3">
+    <span className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-800/50 text-[10px] font-semibold uppercase tracking-wide">
+      {t.type}
+    </span>
+  </td>
+  <td className="px-4 py-3 text-slate-300 text-xs">{t.description}</td>
+  <td className="px-4 py-3 text-right font-semibold">{formatNaira(t.amount)}</td>
+  <td className="px-4 py-3 text-right text-slate-500 text-xs">{formatTimeAgo(t.created_at)}</td>
+  <td className="px-4 py-3 text-center">
+    <button
+      onClick={() => handleDeleteTransaction(t.id)}
+      disabled={actionLoading === t.id}
+      className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:bg-red-500/15 hover:border-red-500/40 hover:text-red-400 transition-all disabled:opacity-50"
+      title="Delete transaction"
+    >
+      <Trash2 size={12} />
+    </button>
+  </td>
+</tr>
                             ))}
                         </tbody>
                       </table>
@@ -1373,50 +1503,80 @@ try {
               {activeTab === 'giftcodes' && <AdminGiftCodes />}
 
               {/* NOTIFICATIONS */}
-              {activeTab === 'notifications' && (
-                <div className="space-y-4">
-                  <div className="bg-[#0f0f16] border border-slate-800/50 rounded-2xl p-5">
-                    <div className="flex items-start gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
-                        <Bell size={18} className="text-violet-400" />
-                      </div>
-                      <div>
-                        <h2 className="font-bold text-sm mb-1">Send Notification to User</h2>
-                        <p className="text-xs text-slate-500">
-                          Select a user below to send them a notification. Notifications appear in their dashboard.
-                        </p>
-                      </div>
-                    </div>
+{activeTab === 'notifications' && (
+  <div className="space-y-4">
+    {/* Broadcast to All Card */}
+    <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/30 rounded-2xl p-5 relative overflow-hidden">
+      <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-amber-500/10 blur-2xl" />
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0">
+            <Users size={20} className="text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold mb-1">Broadcast to All Users</h2>
+            <p className="text-xs text-slate-400 max-w-md">
+              Send a notification to every registered user at once. Perfect for announcements,
+              promotions, festive greetings, or system updates.
+            </p>
+            <p className="text-[11px] text-amber-400 font-semibold mt-2">
+              {users.length} user{users.length !== 1 ? 's' : ''} will receive this
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setBroadcastModal(true)}
+          disabled={users.length === 0}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-white text-xs font-bold hover:from-amber-500 hover:to-amber-400 transition-all flex-shrink-0 disabled:opacity-50"
+        >
+          <Bell size={14} /> Broadcast Now
+        </button>
+      </div>
+    </div>
 
-                    <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search users..." />
+    {/* Individual Send Card */}
+    <div className="bg-[#0f0f16] border border-slate-800/50 rounded-2xl p-5">
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+          <Send size={18} className="text-violet-400" />
+        </div>
+        <div>
+          <h2 className="font-bold text-sm mb-1">Send to a Specific User</h2>
+          <p className="text-xs text-slate-500">
+            Select a user below to send them a personal notification.
+          </p>
+        </div>
+      </div>
 
-                    <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
-                      {filteredUsers.map((u) => (
-                        <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#0a0a0f] border border-slate-800/50">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500/20 to-violet-500/20 border border-slate-700/50 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                              {u.full_name?.charAt(0)?.toUpperCase() || '?'}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate">{u.full_name}</p>
-                              <p className="text-[11px] text-slate-500 font-mono truncate">{u.phone}</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => setNotifyModal({ user: u })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-semibold hover:bg-violet-500/25 transition-all flex-shrink-0"
-                          >
-                            <Send size={12} /> Send
-                          </button>
-                        </div>
-                      ))}
-                      {filteredUsers.length === 0 && (
-                        <div className="text-center py-8 text-slate-500 text-sm">No users found</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+      <SearchBar value={searchQuery} onChange={setSearchQuery} placeholder="Search users..." />
+
+      <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
+        {filteredUsers.map((u) => (
+          <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#0a0a0f] border border-slate-800/50">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500/20 to-violet-500/20 border border-slate-700/50 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                {u.full_name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate">{u.full_name}</p>
+                <p className="text-[11px] text-slate-500 font-mono truncate">{u.phone}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setNotifyModal({ user: u })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-semibold hover:bg-violet-500/25 transition-all flex-shrink-0"
+            >
+              <Send size={12} /> Send
+            </button>
+          </div>
+        ))}
+        {filteredUsers.length === 0 && (
+          <div className="text-center py-8 text-slate-500 text-sm">No users found</div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
                {/* SETTINGS */}
               {activeTab === 'settings' && <AdminSettings />}
             </>
@@ -1460,13 +1620,25 @@ try {
       )}
 
       {notifyModal && (
-        <NotificationModal
-          user={notifyModal.user}
-          onClose={() => setNotifyModal(null)}
-          onSend={handleSendNotification}
-          loading={actionLoading === 'notify'}
-        />
-      )}
+  <NotificationModal
+    user={notifyModal.user}
+    onClose={() => setNotifyModal(null)}
+    onSend={handleSendNotification}
+    loading={actionLoading === 'notify'}
+  />
+)}
+
+{broadcastModal && (
+  <NotificationModal
+    user={null}
+    sendToAllMode={true}
+    totalUsers={users.length}
+    onClose={() => setBroadcastModal(false)}
+    onSend={handleSendNotification}
+    onSendToAll={handleSendToAllUsers}
+    loading={actionLoading === 'broadcast'}
+  />
+)}
     </div>
   );
 }
@@ -2010,16 +2182,21 @@ function DeleteConfirmModal({
     </div>
   );
 }
-
 function NotificationModal({
   user,
   onClose,
   onSend,
+  onSendToAll,
+  sendToAllMode = false,
+  totalUsers = 0,
   loading,
 }: {
-  user: UserProfile;
+  user: UserProfile | null;
   onClose: () => void;
   onSend: (userId: string, title: string, message: string, type: string) => void;
+  onSendToAll?: (title: string, message: string, type: string) => void;
+  sendToAllMode?: boolean;
+  totalUsers?: number;
   loading: boolean;
 }) {
   const [title, setTitle] = useState('');
@@ -2027,6 +2204,7 @@ function NotificationModal({
   const [type, setType] = useState('info');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [showPreview, setShowPreview] = useState(true);
+  const [confirmAll, setConfirmAll] = useState(false);
 
   const groupedTemplates = getTemplatesByCategory();
 
@@ -2050,7 +2228,18 @@ function NotificationModal({
 
   const handleSend = () => {
     if (!title.trim() || !message.trim()) return;
-    onSend(user.id, title.trim(), message.trim(), type);
+
+    if (sendToAllMode) {
+      if (!confirmAll) {
+        setConfirmAll(true);
+        return;
+      }
+      if (onSendToAll) {
+        onSendToAll(title.trim(), message.trim(), type);
+      }
+    } else if (user) {
+      onSend(user.id, title.trim(), message.trim(), type);
+    }
   };
 
   const types = [
@@ -2071,12 +2260,22 @@ function NotificationModal({
       >
         <div className="flex items-center justify-between p-5 border-b border-slate-800/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/10 border border-violet-500/30 flex items-center justify-center">
-              <Bell size={18} className="text-violet-400" />
+            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
+              sendToAllMode
+                ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/10 border-amber-500/30'
+                : 'bg-gradient-to-br from-violet-500/20 to-purple-500/10 border-violet-500/30'
+            }`}>
+              <Bell size={18} className={sendToAllMode ? 'text-amber-400' : 'text-violet-400'} />
             </div>
             <div>
-              <p className="font-bold">Send Notification</p>
-              <p className="text-[11px] text-slate-500">To: {user.full_name}</p>
+              <p className="font-bold">
+                {sendToAllMode ? 'Broadcast to All Users' : 'Send Notification'}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {sendToAllMode
+                  ? `Will be sent to ${totalUsers} user${totalUsers !== 1 ? 's' : ''}`
+                  : `To: ${user?.full_name || 'Unknown'}`}
+              </p>
             </div>
           </div>
           <button
@@ -2088,6 +2287,16 @@ function NotificationModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {sendToAllMode && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2">
+              <AlertCircle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-200 leading-relaxed">
+                This notification will be sent to <span className="font-bold">all {totalUsers} users</span>. It
+                will appear in each user's dashboard. Use this for announcements, promotions, or updates.
+              </p>
+            </div>
+          )}
+
           <div className="p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-purple-500/5 border border-violet-500/30">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles size={14} className="text-violet-400" />
@@ -2233,6 +2442,16 @@ function NotificationModal({
               )}
             </div>
           )}
+
+          {sendToAllMode && confirmAll && (
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2">
+              <AlertCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-red-200 leading-relaxed">
+                <span className="font-bold">Are you sure?</span> Click "Confirm & Send" below to send this
+                notification to all {totalUsers} users. This cannot be undone.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="p-5 border-t border-slate-800/50 flex gap-2">
@@ -2245,10 +2464,26 @@ function NotificationModal({
           <button
             onClick={handleSend}
             disabled={loading || !title.trim() || !message.trim()}
-            className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 text-white text-sm font-semibold hover:from-violet-500 hover:to-violet-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className={`flex-1 py-3 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
+              sendToAllMode
+                ? confirmAll
+                  ? 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400'
+                  : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400'
+                : 'bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400'
+            }`}
           >
             {loading ? (
               'Sending...'
+            ) : sendToAllMode ? (
+              confirmAll ? (
+                <>
+                  <Bell size={14} /> Confirm & Send to All
+                </>
+              ) : (
+                <>
+                  <Users size={14} /> Send to All {totalUsers} Users
+                </>
+              )
             ) : (
               <>
                 <Send size={14} /> Send Notification
