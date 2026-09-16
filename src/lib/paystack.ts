@@ -1,6 +1,8 @@
 // src/lib/paystack.ts
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+// In production, BACKEND_URL is empty so requests go to the same domain.
+// In local dev, VITE_BACKEND_URL=http://localhost:4000 is set in .env.
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 export interface InitializePaymentResponse {
   success: boolean;
