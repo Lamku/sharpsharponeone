@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, TrendingUp, Home, Wallet, Users, Gift, Settings, Info } from 'lucide-react';
+import { X, TrendingUp, Home, Wallet, Users, Gift, Settings, Info, Headphones } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InvestmentProgress } from './InvestmentProgress';
 import type { TabKey } from '@/components/BottomNav';
@@ -30,6 +30,15 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
     onNavigate(key);
     navigate(`/app/${key}`);
     onClose();
+  };
+
+  const handleSupport = () => {
+    const api = (window as any).Tawk_API;
+    if (api?.maximize) {
+      api.maximize();
+    } else {
+      alert('Support chat is loading. Please try again in a moment.');
+    }
   };
 
   return (
@@ -94,6 +103,20 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* ⭐ Contact Support button — ADD IT HERE */}
+          <div className="border-t border-slate-800/50 pt-4 mb-4">
+            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2 px-1">
+              Need Help?
+            </p>
+            <button
+              onClick={handleSupport}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 text-sm font-semibold hover:bg-sky-500/25 transition-all w-full"
+            >
+              <Headphones size={16} />
+              Contact Support
+            </button>
           </div>
 
           {/* Investment Progress */}

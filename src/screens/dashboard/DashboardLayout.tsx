@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
-import { LogOut, Bell, TrendingUp, Wallet as WalletIcon, ArrowDownToLine, ArrowUpFromLine, CalendarCheck, Clock, Sparkles, ChevronRight, AlertCircle, Building2, Shield, Info, Menu } from 'lucide-react';
+import { LogOut, Bell, TrendingUp, Wallet as WalletIcon, ArrowDownToLine, ArrowUpFromLine, CalendarCheck, Clock, Sparkles, ChevronRight, AlertCircle, Building2, Shield, Info, Menu, Headphones } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { NotificationBanner } from '@/components/NotificationBar';
 import { PlatformSettings, subscribeToSettings, DEFAULT_SETTINGS } from '@/lib/settings';
 import { ManualDepositSection } from './ManualDepositSection';
 import { notifyWithdrawal } from '@/lib/telegram';
-import { TelegramButton } from '@/components/TelegramButton';
+import { SupportChat } from '@/components/SupportChat';
+// import { TelegramButton } from '@/components/TelegramButton';
 import {
   collection,
   doc,
@@ -721,8 +722,11 @@ const lastCheckIn = (() => {
         />
       )}
 
+      {/* Live support chat (Tawk.to) */}
+          <SupportChat />
+
        {/* ⭐ Draggable Telegram button */}
-      <TelegramButton />
+      {/* <TelegramButton /> */}
     </div>
   );
 }
