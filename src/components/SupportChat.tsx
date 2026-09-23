@@ -9,6 +9,37 @@ export function SupportChat() {
     const Tawk_API = ((window as any).Tawk_API = (window as any).Tawk_API || {});
     (window as any).Tawk_LoadStart = new Date();
 
+    // ⭐ Hide the default Tawk.to floating bubble so it doesn't block UI.
+    //    Support is still accessible via our own buttons that call
+    //    Tawk_API.maximize().
+    const style = document.createElement('style');
+    style.setAttribute('data-tawk-hide', 'true');
+    style.innerHTML = `
+      /* Hide the Tawk.to bubble container */
+      #tawk-bubble-container,
+      .tawk-min-container,
+      .tawk-min-container-1,
+      #tawkchat-minified-container,
+      iframe[title="chat widget"],
+      iframe[title="Chat widget"] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      /* Keep the full chat window visible when opened */
+      #tawkchat-container,
+      .tawk-chat-container,
+      iframe[title="chat window"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+
     const s1 = document.createElement('script');
     const s0 = document.getElementsByTagName('script')[0];
     s1.async = true;
@@ -17,25 +48,14 @@ export function SupportChat() {
     s1.setAttribute('crossorigin', '*');
     s0.parentNode?.insertBefore(s1, s0);
 
-    // Optional: hide the default widget until user clicks your custom button
     Tawk_API.onLoad = function () {
-      console.log('[SupportChat] Tawk.to loaded');
+      console.log('[SupportChat] Tawk.to loaded (bubble hidden, chat available)');
     };
 
     return () => {
-      // Cleanup optional — usually leave the widget mounted
+      // Widget stays mounted; cleanup not needed
     };
   }, []);
 
-  // Optional: expose a button that opens the chat
-  const openChat = () => {
-    const api = (window as any).Tawk_API;
-    if (api?.maximize) {
-      api.maximize();
-    } else {
-      console.warn('Tawk.to not ready yet');
-    }
-  };
-
-  return null; // Widget appears on its own; no visible UI from this component
+  return null;
 }

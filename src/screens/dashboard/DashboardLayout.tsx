@@ -8,6 +8,7 @@ import { PlatformSettings, subscribeToSettings, DEFAULT_SETTINGS } from '@/lib/s
 import { ManualDepositSection } from './ManualDepositSection';
 import { notifyWithdrawal } from '@/lib/telegram';
 import { SupportChat } from '@/components/SupportChat';
+// import { DraggableSupportButton } from '@/components/DraggableSupportButton';
 // import { TelegramButton } from '@/components/TelegramButton';
 import {
   collection,
@@ -727,6 +728,9 @@ const lastCheckIn = (() => {
 
        {/* ⭐ Draggable Telegram button */}
       {/* <TelegramButton /> */}
+
+      {/* Draggable support button — opens chat on tap */}
+{/* <DraggableSupportButton /> */}
     </div>
   );
 }
