@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 
 /**
- * Pay 40% commission to the referrer, once per referred user.
+ * Pay referral commission to the referrer, once per referred user.
  * Call AFTER a deposit has been credited to the referred user's wallet.
  */
 export async function payReferralCommission(
@@ -44,7 +44,7 @@ export async function payReferralCommission(
     const referrerId = snap.docs[0].id;
     const referrerRef = doc(db, 'users', referrerId);
 
-    // ⭐ 40% commission
+    // Commission calculation
     const commission = depositAmount * 0.4;
 
     await runTransaction(db, async (transaction) => {
@@ -80,7 +80,7 @@ export async function payReferralCommission(
         user_id: referrerId,
         amount: commission,
         type: 'referral',
-        description: '40% referral commission from a referred user deposit',
+        description: 'Referral commission from a referred user deposit',
         status: 'successful',
         created_at: serverTimestamp(),
       });
@@ -90,7 +90,7 @@ export async function payReferralCommission(
       transaction.set(notifRef, {
         user_id: referrerId,
         title: '💰 Referral Commission Earned',
-        message: `You earned ₦${commission.toLocaleString()} (40%) from a referred user's deposit.`,
+        message: `You earned ₦${commission.toLocaleString()} from a referred user's deposit.`,
         type: 'success',
         read: false,
         created_at: serverTimestamp(),

@@ -100,7 +100,7 @@ export function TeamScreen() {
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">Invite & Earn</h3>
-              <p className="text-xs text-slate-400">Earn 40% of your referrals' first deposit</p>
+              {/* <p className="text-xs text-slate-400">Earn your referrals' first deposit</p> */}
             </div>
           </div>
 
@@ -133,10 +133,10 @@ export function TeamScreen() {
           {/* Earnings hint */}
           <div className="mt-4 p-3 rounded-xl bg-emerald/5 border border-emerald/20 flex items-start gap-2">
             <TrendingUp size={14} className="text-emerald flex-shrink-0 mt-0.5" />
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              You earn <span className="text-emerald font-semibold">40% commission</span> on each referral's
+            {/* <p className="text-[11px] text-slate-400 leading-relaxed">
+              You earn <span className="text-emerald font-semibold">commission</span> on each referral's
               first deposit. Paid out instantly to your wallet.
-            </p>
+            </p> */}
           </div>
         </div>
       </div>
