@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, X, Info, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { X, Info, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
@@ -13,6 +13,62 @@ interface Notification {
   created_at: any;
 }
 
+// ============ HEINEKEN PALETTE PER TYPE ============
+const TYPE_STYLES: Record<
+  string,
+  {
+    bg: string;
+    border: string;
+    iconBg: string;
+    iconColor: string;
+    titleColor: string;
+    msgColor: string;
+    accent: string;
+    Icon: any;
+  }
+> = {
+  info: {
+    bg: 'bg-[#007A33]/8',
+    border: 'border-[#007A33]/25',
+    iconBg: 'bg-[#007A33]/15',
+    iconColor: 'text-[#007A33]',
+    titleColor: 'text-[#0A2A1A]',
+    msgColor: 'text-[#4A5A50]',
+    accent: 'bg-[#007A33]',
+    Icon: Info,
+  },
+  success: {
+    bg: 'bg-[#00A04A]/10',
+    border: 'border-[#00A04A]/30',
+    iconBg: 'bg-[#00A04A]/15',
+    iconColor: 'text-[#00A04A]',
+    titleColor: 'text-[#0A2A1A]',
+    msgColor: 'text-[#4A5A50]',
+    accent: 'bg-[#00A04A]',
+    Icon: CheckCircle2,
+  },
+  warning: {
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-500/30',
+    iconBg: 'bg-amber-500/15',
+    iconColor: 'text-amber-600',
+    titleColor: 'text-[#0A2A1A]',
+    msgColor: 'text-[#4A5A50]',
+    accent: 'bg-amber-500',
+    Icon: AlertTriangle,
+  },
+  error: {
+    bg: 'bg-red-500/8',
+    border: 'border-red-500/30',
+    iconBg: 'bg-red-500/12',
+    iconColor: 'text-red-600',
+    titleColor: 'text-[#0A2A1A]',
+    msgColor: 'text-[#4A5A50]',
+    accent: 'bg-red-500',
+    Icon: XCircle,
+  },
+};
+
 export function NotificationBanner() {
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -21,7 +77,6 @@ export function NotificationBanner() {
   useEffect(() => {
     if (!profile) return;
 
-    // No orderBy — we sort in JavaScript
     const q = query(
       collection(db, 'notifications'),
       where('user_id', '==', profile.id)
@@ -34,7 +89,6 @@ export function NotificationBanner() {
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter((n: any) => !n.read) as Notification[];
 
-        // Sort newest first
         const sorted = data.sort((a, b) => {
           const aTime = a.created_at?.toDate?.()?.getTime() || 0;
           const bTime = b.created_at?.toDate?.()?.getTime() || 0;
@@ -63,35 +117,44 @@ export function NotificationBanner() {
   const visible = notifications.filter(n => !dismissed.includes(n.id));
   if (visible.length === 0) return null;
 
-  const typeStyles: Record<string, { bg: string; border: string; text: string; icon: any }> = {
-    info: { bg: 'bg-sky-500/10', border: 'border-sky-500/30', text: 'text-sky-400', icon: Info },
-    success: { bg: 'bg-emerald/10', border: 'border-emerald/30', text: 'text-emerald', icon: CheckCircle2 },
-    warning: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', icon: AlertTriangle },
-    error: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-400', icon: XCircle },
-  };
-
   return (
     <div className="space-y-2 mb-4">
       {visible.map((n) => {
-        const style = typeStyles[n.type] || typeStyles.info;
-        const Icon = style.icon;
+        const style = TYPE_STYLES[n.type] || TYPE_STYLES.info;
+        const Icon = style.Icon;
+
         return (
           <div
             key={n.id}
-            className={`${style.bg} ${style.border} border rounded-xl p-3 flex items-start gap-3 animate-slide-up`}
+            className={`relative ${style.bg} ${style.border} border rounded-2xl p-3.5 pl-4 flex items-start gap-3 animate-slide-up overflow-hidden`}
           >
-            <div className={`w-8 h-8 rounded-lg ${style.bg} flex items-center justify-center flex-shrink-0`}>
-              <Icon size={16} className={style.text} />
+            {/* Left accent bar */}
+            <div className={`absolute left-0 top-0 bottom-0 w-1 ${style.accent}`} />
+
+            {/* Icon */}
+            <div
+              className={`w-9 h-9 rounded-xl ${style.iconBg} flex items-center justify-center flex-shrink-0`}
+            >
+              <Icon size={17} className={style.iconColor} />
             </div>
+
+            {/* Content — DARK text, fully readable */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">{n.title}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{n.message}</p>
+              <p className={`text-sm font-bold ${style.titleColor} leading-tight`}>
+                {n.title}
+              </p>
+              <p className={`text-xs ${style.msgColor} mt-1 leading-relaxed`}>
+                {n.message}
+              </p>
             </div>
+
+            {/* Dismiss */}
             <button
               onClick={() => handleDismiss(n.id)}
-              className="w-6 h-6 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:text-white flex-shrink-0"
+              aria-label="Dismiss notification"
+              className="w-7 h-7 rounded-lg bg-white border border-[#E8EDE8] flex items-center justify-center text-[#4A5A50] hover:text-[#007A33] hover:border-[#007A33]/40 transition-all flex-shrink-0"
             >
-              <X size={12} />
+              <X size={13} />
             </button>
           </div>
         );

@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot
-} from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatNaira, formatTimeAgo } from '@/lib/format';
-import { 
-  ArrowDownToLine, ArrowUpFromLine, CalendarCheck, Gift, 
-  Sparkles, Users, TrendingUp, Coins, AlertCircle, Loader2 
-} from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, CalendarCheck, Gift, Sparkles, Users, TrendingUp, Coins, AlertCircle, Loader2 } from 'lucide-react';
 
 interface Transaction {
   id: string;
@@ -23,21 +15,20 @@ interface Transaction {
 }
 
 const typeMeta: Record<string, { icon: any; color: string; bg: string; sign: string }> = {
-  deposit: { icon: ArrowDownToLine, color: 'text-emerald', bg: 'bg-emerald/10 border-emerald/30', sign: '+' },
-  withdrawal: { icon: ArrowUpFromLine, color: 'text-gold', bg: 'bg-gold/10 border-gold/30', sign: '-' },
-  check_in: { icon: CalendarCheck, color: 'text-emerald', bg: 'bg-emerald/10 border-emerald/30', sign: '+' },
-  welcome_bonus: { icon: Sparkles, color: 'text-gold', bg: 'bg-gold/10 border-gold/30', sign: '+' },
-  investment: { icon: TrendingUp, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30', sign: '-' },
-  referral: { icon: Users, color: 'text-emerald', bg: 'bg-emerald/10 border-emerald/30', sign: '+' },
-  yield: { icon: Coins, color: 'text-emerald', bg: 'bg-emerald/10 border-emerald/30', sign: '+' },
-  gift: { icon: Gift, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', sign: '+' },
+  deposit:      { icon: ArrowDownToLine, color: 'text-[#00A04A]',   bg: 'bg-[#00A04A]/10 border-[#00A04A]/30',   sign: '+' },
+  withdrawal:   { icon: ArrowUpFromLine, color: 'text-[#007A33]',   bg: 'bg-[#007A33]/10 border-[#007A33]/30',   sign: '-' },
+  check_in:     { icon: CalendarCheck,   color: 'text-[#00A04A]',   bg: 'bg-[#00A04A]/10 border-[#00A04A]/30',   sign: '+' },
+  welcome_bonus:{ icon: Sparkles,        color: 'text-[#007A33]',   bg: 'bg-[#007A33]/10 border-[#007A33]/30',   sign: '+' },
+  investment:   { icon: TrendingUp,      color: 'text-[#007A33]',   bg: 'bg-[#007A33]/10 border-[#007A33]/30',   sign: '-' },
+  referral:     { icon: Users,           color: 'text-[#00A04A]',   bg: 'bg-[#00A04A]/10 border-[#00A04A]/30',   sign: '+' },
+  yield:        { icon: Coins,           color: 'text-[#00A04A]',   bg: 'bg-[#00A04A]/10 border-[#00A04A]/30',   sign: '+' },
+  gift:         { icon: Gift,            color: 'text-[#007A33]',   bg: 'bg-[#007A33]/10 border-[#007A33]/30',   sign: '+' },
 };
 
-// Default for unknown types — prevents crash
 const defaultMeta = {
   icon: Coins,
-  color: 'text-slate-400',
-  bg: 'bg-slate-500/10 border-slate-500/30',
+  color: 'text-[#4A5A50]',
+  bg: 'bg-[#F5F7F5] border-[#E8EDE8]',
   sign: '+',
 };
 
@@ -49,15 +40,9 @@ export function WalletScreen() {
   const [filter, setFilter] = useState<'all' | 'in' | 'out'>('all');
 
   useEffect(() => {
-    if (!profile) {
-      setLoading(false);
-      return;
-    }
+    if (!profile) { setLoading(false); return; }
 
-    const q = query(
-      collection(db, 'transactions'),
-      where('user_id', '==', profile.id)
-    );
+    const q = query(collection(db, 'transactions'), where('user_id', '==', profile.id));
 
     const unsubscribe = onSnapshot(
       q,
@@ -82,12 +67,11 @@ export function WalletScreen() {
     return () => unsubscribe();
   }, [profile]);
 
-  // Show loading if profile isn't loaded yet
   if (!profile) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 size={32} className="animate-spin text-gold mb-3" />
-        <p className="text-sm text-slate-400">Loading wallet...</p>
+        <Loader2 size={32} className="animate-spin text-[#007A33] mb-3" />
+        <p className="text-sm text-[#4A5A50]">Loading wallet...</p>
       </div>
     );
   }
@@ -107,75 +91,66 @@ export function WalletScreen() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-white mb-3 mt-1">My Wallet</h2>
+      <h2 className="text-lg font-bold text-[#0A2A1A] mb-3 mt-1">My Wallet</h2>
 
-      {/* Balance card */}
       <div className="glass-card p-5 mb-4 relative overflow-hidden animate-slide-up">
-        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-gold/8 blur-2xl" />
+        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-[#007A33]/8 blur-2xl" />
         <div className="relative">
-          <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Current Balance</p>
-          <p className="text-3xl font-extrabold text-gold mb-4">
-            {formatNaira(profile.wallet_balance || 0)}
-          </p>
+          <p className="text-xs text-[#4A5A50] uppercase tracking-wider font-semibold mb-1">Current Balance</p>
+          <p className="text-3xl font-extrabold text-[#007A33] mb-4">{formatNaira(profile.wallet_balance || 0)}</p>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-midnight-50/50 rounded-xl p-3 border border-obsidian-border/40">
-              <div className="flex items-center gap-1 text-emerald mb-1">
+            <div className="bg-[#F5F7F5] rounded-xl p-3 border border-[#E8EDE8]">
+              <div className="flex items-center gap-1 text-[#00A04A] mb-1">
                 <ArrowDownToLine size={13} />
-                <span className="text-[11px] font-medium text-slate-400">Total In</span>
+                <span className="text-[11px] font-medium text-[#4A5A50]">Total In</span>
               </div>
-              <span className="text-sm font-bold text-white">{formatNaira(totalIn)}</span>
+              <span className="text-sm font-bold text-[#0A2A1A]">{formatNaira(totalIn)}</span>
             </div>
-            <div className="bg-midnight-50/50 rounded-xl p-3 border border-obsidian-border/40">
-              <div className="flex items-center gap-1 text-gold mb-1">
+            <div className="bg-[#F5F7F5] rounded-xl p-3 border border-[#E8EDE8]">
+              <div className="flex items-center gap-1 text-[#007A33] mb-1">
                 <ArrowUpFromLine size={13} />
-                <span className="text-[11px] font-medium text-slate-400">Total Out</span>
+                <span className="text-[11px] font-medium text-[#4A5A50]">Total Out</span>
               </div>
-              <span className="text-sm font-bold text-white">{formatNaira(totalOut)}</span>
+              <span className="text-sm font-bold text-[#0A2A1A]">{formatNaira(totalOut)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-2 mb-3">
         {([
           { key: 'all', label: 'All' },
           { key: 'in', label: 'Income' },
           { key: 'out', label: 'Spent' },
         ] as const).map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
+          <button key={f.key} onClick={() => setFilter(f.key)}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${
               filter === f.key
-                ? 'bg-gold/15 text-gold border border-gold/30'
-                : 'bg-obsidian-light/40 text-slate-400 border border-obsidian-border/40 hover:text-slate-200'
-            }`}
-          >
+                ? 'bg-[#007A33]/15 text-[#007A33] border border-[#007A33]/30'
+                : 'bg-[#F5F7F5] text-[#4A5A50] border border-[#E8EDE8] hover:text-[#0A2A1A]'
+            }`}>
             {f.label}
           </button>
         ))}
       </div>
 
-      {/* Error */}
       {error && (
         <div className="glass-card p-4 mb-3 border border-red-500/30 flex items-start gap-2">
-          <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-red-400">{error}</p>
+          <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-red-500">{error}</p>
         </div>
       )}
 
-      {/* Transaction list */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="glass-card p-4 animate-pulse">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-obsidian-border/40" />
+                <div className="w-10 h-10 rounded-xl bg-[#E8EDE8]" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3 w-24 bg-obsidian-border/40 rounded" />
-                  <div className="h-2 w-16 bg-obsidian-border/30 rounded" />
+                  <div className="h-3 w-24 bg-[#E8EDE8] rounded" />
+                  <div className="h-2 w-16 bg-[#E8EDE8] rounded" />
                 </div>
               </div>
             </div>
@@ -183,28 +158,21 @@ export function WalletScreen() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="glass-card p-8 text-center">
-          <p className="text-sm text-slate-400">No transactions yet</p>
+          <p className="text-sm text-[#4A5A50]">No transactions yet</p>
         </div>
       ) : (
         <div className="space-y-2.5">
           {filtered.map((t, i) => {
-            // ⭐ SAFE: uses defaultMeta if type is unknown — prevents crash
             const meta = typeMeta[t.type] || defaultMeta;
             const Icon = meta.icon;
             return (
-              <div
-                key={t.id}
-                className="glass-card p-3.5 flex items-center gap-3 animate-slide-up"
-                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
-              >
+              <div key={t.id} className="glass-card p-3.5 flex items-center gap-3 animate-slide-up" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
                 <div className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${meta.bg}`}>
                   <Icon size={18} className={meta.color} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">
-                    {t.description || 'Transaction'}
-                  </p>
-                  <p className="text-[11px] text-slate-500 capitalize">
+                  <p className="text-sm font-semibold text-[#0A2A1A] truncate">{t.description || 'Transaction'}</p>
+                  <p className="text-[11px] text-[#8A9A90] capitalize">
                     {(t.type || 'unknown').replace('_', ' ')} · {formatTimeAgo(t.created_at)}
                   </p>
                 </div>

@@ -4,16 +4,8 @@ import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { notifyDeposit } from '@/lib/telegram';
 import {
-  collection,
-  query,
-  where,
-  getDocs,
-  getDoc,
-  updateDoc,
-  doc,
-  addDoc,
-  serverTimestamp,
-  runTransaction,
+  collection, query, where, getDocs, getDoc, updateDoc, doc,
+  addDoc, serverTimestamp, runTransaction,
 } from 'firebase/firestore';
 import { verifyPayment } from '@/lib/paystack';
 import { formatNaira } from '@/lib/format';
@@ -40,9 +32,6 @@ export const DepositCallback: React.FC = () => {
 
     (async () => {
       try {
-        // ==================================================
-        // STEP 1: Verify payment with Paystack
-        // ==================================================
         const result = await verifyPayment(reference);
         console.log('[DepositCallback] verify result:', result);
 
@@ -54,35 +43,22 @@ export const DepositCallback: React.FC = () => {
 
         const paidAmount = result.amount || 0;
         let userId = result.userId || null;
-
-        // ==================================================
-        // STEP 1B: Recover userId from deposit_intents
-        //          (for Paystack Storefront payments, metadata is not sent)
-        // ==================================================
         let intentId: string | null = null;
 
         if (!userId) {
           console.log('[DepositCallback] No userId from Paystack — looking up intent');
           try {
-            // Try sessionStorage first (same browser that created the intent)
             let sessionUserId: string | null = null;
-            try {
-              sessionUserId = sessionStorage.getItem('deposit_intent_user');
-            } catch {}
+            try { sessionUserId = sessionStorage.getItem('deposit_intent_user'); } catch {}
 
             if (sessionUserId) {
               userId = sessionUserId;
               console.log('[DepositCallback] Recovered userId from sessionStorage:', userId);
             } else {
-              // Fallback: query the most recent unused intent in Firestore
-              const intentQuery = query(
-                collection(db, 'deposit_intents'),
-                where('used', '==', false)
-              );
+              const intentQuery = query(collection(db, 'deposit_intents'), where('used', '==', false));
               const intentSnap = await getDocs(intentQuery);
 
               if (!intentSnap.empty) {
-                // Sort by created_at descending and take the newest
                 const sorted = intentSnap.docs
                   .map((d) => ({ id: d.id, ...d.data() }))
                   .sort((a: any, b: any) => {
@@ -90,7 +66,6 @@ export const DepositCallback: React.FC = () => {
                     const bt = b.created_at?.toDate?.()?.getTime?.() || 0;
                     return bt - at;
                   });
-
                 userId = (sorted[0] as any).user_id as string;
                 intentId = sorted[0].id as string;
                 console.log('[DepositCallback] Recovered userId from Firestore intent:', userId);
@@ -103,17 +78,12 @@ export const DepositCallback: React.FC = () => {
 
         if (!userId) {
           setStatus('failed');
-          setMessage(
-            'Could not determine which user this payment belongs to. Please contact support with your Paystack reference.'
-          );
+          setMessage('Could not determine which user this payment belongs to. Please contact support with your Paystack reference.');
           return;
         }
 
         setAmount(paidAmount);
 
-        // ==================================================
-        // STEP 2: Find the paystack_refs record (if any)
-        // ==================================================
         let refDocId: string | null = null;
         let txId: string | null = null;
         let alreadyCredited = false;
@@ -137,8 +107,6 @@ export const DepositCallback: React.FC = () => {
           console.warn('[DepositCallback] Could not read paystack_refs:', refErr);
         }
 
-        // ⭐ Also check if this reference was already processed before
-        //    (belt-and-suspenders for storefront flow)
         if (!alreadyCredited) {
           try {
             const txQuery = query(
@@ -159,9 +127,6 @@ export const DepositCallback: React.FC = () => {
           }
         }
 
-        // ==================================================
-        // STEP 3: Mark transaction successful (best-effort)
-        // ==================================================
         if (txId) {
           try {
             await updateDoc(doc(db, 'transactions', txId), {
@@ -174,9 +139,6 @@ export const DepositCallback: React.FC = () => {
           }
         }
 
-        // ==================================================
-        // STEP 4: Credit user's wallet (idempotent)
-        // ==================================================
         if (!alreadyCredited) {
           await creditUser(userId, paidAmount, reference);
           console.log('[DepositCallback] User credited:', paidAmount);
@@ -192,7 +154,6 @@ export const DepositCallback: React.FC = () => {
             }
           }
 
-          // Mark intent as used
           if (intentId) {
             try {
               await updateDoc(doc(db, 'deposit_intents', intentId), {
@@ -205,19 +166,15 @@ export const DepositCallback: React.FC = () => {
             }
           }
 
-          // Clear sessionStorage
           try {
             sessionStorage.removeItem('deposit_intent_user');
             sessionStorage.removeItem('deposit_intent_time');
           } catch {}
 
-          // ⭐ STEP 4B: Pay 40% referral commission (once per referred user)
           try {
             const refResult = await payReferralCommission(userId, paidAmount);
             if (refResult.paid) {
-              console.log(
-                `[DepositCallback] ✅ Referral: ₦${refResult.commission} → ${refResult.referrerId}`
-              );
+              console.log(`[DepositCallback] ✅ Referral: ₦${refResult.commission} → ${refResult.referrerId}`);
             } else {
               console.log(`[DepositCallback] Referral skipped: ${refResult.reason}`);
             }
@@ -225,7 +182,6 @@ export const DepositCallback: React.FC = () => {
             console.warn('[DepositCallback] Referral payout failed (non-fatal):', refErr);
           }
 
-          // ⭐ Telegram — notify admin of successful deposit
           try {
             const userSnap = await getDoc(doc(db, 'users', userId));
             const userData = userSnap.exists() ? userSnap.data() : null;
@@ -243,9 +199,6 @@ export const DepositCallback: React.FC = () => {
           console.log('[DepositCallback] Already credited — skipping');
         }
 
-        // ==================================================
-        // STEP 5: Success
-        // ==================================================
         setStatus('success');
         setMessage(`₦${paidAmount.toLocaleString()} credited to your wallet.`);
       } catch (err: any) {
@@ -253,9 +206,7 @@ export const DepositCallback: React.FC = () => {
         console.error('[DepositCallback] Error code:', err?.code);
         console.error('[DepositCallback] Error message:', err?.message);
         setStatus('failed');
-        setMessage(
-          `Payment received but crediting failed: ${err?.message || 'Unknown error'}. Please contact support with ref: ${reference}`
-        );
+        setMessage(`Payment received but crediting failed: ${err?.message || 'Unknown error'}. Please contact support with ref: ${reference}`);
       }
     })();
   }, [searchParams]);
@@ -265,17 +216,17 @@ export const DepositCallback: React.FC = () => {
       <div className="glass-card p-6 max-w-md w-full text-center">
         {status === 'loading' && (
           <>
-            <Loader2 size={48} className="text-emerald-400 mx-auto mb-4 animate-spin" />
-            <h2 className="text-lg font-bold text-white mb-2">Verifying Payment</h2>
-            <p className="text-sm text-slate-400">{message}</p>
+            <Loader2 size={48} className="text-[#00A04A] mx-auto mb-4 animate-spin" />
+            <h2 className="text-lg font-bold text-[#0A2A1A] mb-2">Verifying Payment</h2>
+            <p className="text-sm text-[#4A5A50]">{message}</p>
           </>
         )}
         {status === 'success' && (
           <>
-            <CheckCircle2 size={48} className="text-emerald-400 mx-auto mb-4" />
-            <h2 className="text-lg font-bold text-white mb-2">Payment Successful!</h2>
-            <p className="text-sm text-emerald-400 font-semibold mb-1">{formatNaira(amount)}</p>
-            <p className="text-sm text-slate-400 mb-5">{message}</p>
+            <CheckCircle2 size={48} className="text-[#00A04A] mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-[#0A2A1A] mb-2">Payment Successful!</h2>
+            <p className="text-sm text-[#00A04A] font-semibold mb-1">{formatNaira(amount)}</p>
+            <p className="text-sm text-[#4A5A50] mb-5">{message}</p>
             <button onClick={() => navigate('/app/products')} className="btn-emerald w-full py-3 text-sm">
               Back to Dashboard
             </button>
@@ -283,9 +234,9 @@ export const DepositCallback: React.FC = () => {
         )}
         {status === 'failed' && (
           <>
-            <XCircle size={48} className="text-red-400 mx-auto mb-4" />
-            <h2 className="text-lg font-bold text-white mb-2">Payment Issue</h2>
-            <p className="text-sm text-slate-400 mb-5">{message}</p>
+            <XCircle size={48} className="text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-[#0A2A1A] mb-2">Payment Issue</h2>
+            <p className="text-sm text-[#4A5A50] mb-5">{message}</p>
             <button onClick={() => navigate('/app/products')} className="btn-ghost w-full py-3 text-sm">
               Back to Dashboard
             </button>
@@ -296,9 +247,7 @@ export const DepositCallback: React.FC = () => {
   );
 };
 
-// ==================================================
-// CREDIT USER — atomic wallet credit + one notification
-// ==================================================
+// ⚠️ LOGIC UNCHANGED — only colors are irrelevant here (no UI)
 async function creditUser(userId: string, amount: number, reference: string) {
   await runTransaction(db, async (transaction) => {
     const userRef = doc(db, 'users', userId);
@@ -312,7 +261,6 @@ async function creditUser(userId: string, amount: number, reference: string) {
     });
   });
 
-  // Save the reference on the transaction for dedup later
   try {
     await addDoc(collection(db, 'transactions'), {
       user_id: userId,
@@ -343,9 +291,6 @@ async function creditUser(userId: string, amount: number, reference: string) {
   }
 }
 
-// ==================================================
-// ⭐ PAY REFERRAL COMMISSION — 40% once per referred user
-// ==================================================
 async function payReferralCommission(
   referredUserId: string,
   depositAmount: number
@@ -375,9 +320,7 @@ async function payReferralCommission(
     await runTransaction(db, async (transaction) => {
       const freshReferred = await transaction.get(referredUserRef);
       if (!freshReferred.exists()) throw new Error('Referred user missing');
-      if (freshReferred.data()?.referral_commission_paid) {
-        throw new Error('ALREADY_PAID');
-      }
+      if (freshReferred.data()?.referral_commission_paid) throw new Error('ALREADY_PAID');
 
       const freshReferrer = await transaction.get(referrerRef);
       if (!freshReferrer.exists()) throw new Error('Referrer missing');
@@ -419,9 +362,7 @@ async function payReferralCommission(
 
     return { paid: true, commission, referrerId };
   } catch (err: any) {
-    if (err?.message === 'ALREADY_PAID') {
-      return { paid: false, reason: 'Already paid' };
-    }
+    if (err?.message === 'ALREADY_PAID') return { paid: false, reason: 'Already paid' };
     console.error('payReferralCommission error:', err);
     return { paid: false, reason: err?.message || 'Unknown error' };
   }

@@ -2,16 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  setDoc,
-  runTransaction,
-  serverTimestamp,
-  orderBy,
-  onSnapshot
+  collection, query, where, getDocs, doc, setDoc,
+  runTransaction, serverTimestamp, orderBy, onSnapshot
 } from 'firebase/firestore';
 import { formatNaira } from '@/lib/format';
 import { Lock, TrendingUp, Clock, CheckCircle2, AlertCircle, Loader2, Sparkles, Calendar, Coins } from 'lucide-react';
@@ -36,103 +28,31 @@ interface Investment {
   created_at: any;
 }
 
-// ============ 8 INVESTMENT PLANS ============
+// ⭐ 8 Heineken VIP plans
 const DEFAULT_PLANS: Omit<Plan, 'id'>[] = [
-  {
-    name: 'Mowe Garden Estate',
-    cost: 5000,
-    daily_yield: 1000,
-    duration_days: 100,
-    total_return: 100000,
-    locked: false,
-    sort_order: 1,
-    description: 'Prime residential plots in Mowe, Ogun State',
-  },
-  {
-    name: 'Epe Waterfront',
-    cost: 15000,
-    daily_yield: 3333,
-    duration_days: 100,
-    total_return: 333300,
-    locked: false,
-    sort_order: 2,
-    description: 'Waterfront properties in Epe, Lagos',
-  },
-  {
-    name: 'Ibeju-Lekki Industrial',
-    cost: 35000,
-    daily_yield: 7200,
-    duration_days: 100,
-    total_return: 720000,
-    locked: false,
-    sort_order: 3,
-    description: 'Industrial and commercial plots near Lekki Free Trade Zone',
-  },
-  {
-    name: 'Lekki Phase 2',
-    cost: 55000,
-    daily_yield: 13250,
-    duration_days: 100,
-    total_return: 1325000,
-    locked: false,
-    sort_order: 4,
-    description: 'Premium residential plots in Lekki Phase 2',
-  },
-  {
-    name: 'Lekki Phase 1',
-    cost: 100000,
-    daily_yield: 26300,
-    duration_days: 100,
-    total_return: 2630000,
-    locked: false,
-    sort_order: 5,
-    description: 'High-end residential plots in Lekki Phase 1',
-  },
-  {
-    name: 'Banana Island Elite',
-    cost: 200000,
-    daily_yield: 55555,
-    duration_days: 100,
-    total_return: 5555500,
-    locked: true,
-    sort_order: 6,
-    description: 'Exclusive luxury plots in Banana Island, Lagos',
-  },
-  {
-    name: 'Victoria Crest',
-    cost: 400000,
-    daily_yield: 123300,
-    duration_days: 100,
-    total_return: 12330000,
-    locked: true,
-    sort_order: 7,
-    description: 'Premium waterfront estate in Victoria Island',
-  },
-  {
-    name: 'TerraVault Ultra',
-    cost: 1000000000,
-    daily_yield: 350000,
-    duration_days: 100,
-    total_return: 35000000,
-    locked: true,
-    sort_order: 8,
-    description: 'Flagship luxury real estate investment',
-  },
+  { name: 'Heineken VIP 1', cost: 5000,         daily_yield: 1000,  duration_days: 100, total_return: 100000,    locked: false, sort_order: 1, description: 'Heineken VIP Starter Plan' },
+  { name: 'Heineken VIP 2', cost: 15000,        daily_yield: 3333,  duration_days: 100, total_return: 333300,    locked: false, sort_order: 2, description: 'Heineken VIP Growth Plan' },
+  { name: 'Heineken VIP 3', cost: 35000,        daily_yield: 7200,  duration_days: 100, total_return: 720000,    locked: false, sort_order: 3, description: 'Heineken VIP Business Plan' },
+  { name: 'Heineken VIP 4', cost: 55000,        daily_yield: 13250, duration_days: 100, total_return: 1325000,   locked: false, sort_order: 4, description: 'Heineken VIP Premium Plan' },
+  { name: 'Heineken VIP 5', cost: 100000,       daily_yield: 26300, duration_days: 100, total_return: 2630000,   locked: false, sort_order: 5, description: 'Heineken VIP Elite Plan' },
+  { name: 'Heineken VIP 6', cost: 200000,       daily_yield: 55555, duration_days: 100, total_return: 5555500,   locked: true,  sort_order: 6, description: 'Heineken VIP Luxury Plan' },
+  { name: 'Heineken VIP 7', cost: 400000,       daily_yield: 123300, duration_days: 100, total_return: 12330000, locked: true,  sort_order: 7, description: 'Heineken VIP Platinum Plan' },
+  { name: 'Heineken VIP 8', cost: 1000000000,   daily_yield: 350000, duration_days: 100, total_return: 35000000, locked: true,  sort_order: 8, description: 'Heineken VIP Ultra Plan' },
 ];
 
-const PLAN_IMAGES: Record<string, string> = {
-  'plan-1': 'https://i.ibb.co/m5QB1yzL/plan-1-mowe.jpg',
-  'plan-2': 'https://i.ibb.co/XrP2wBs7/plan-2-epe.jpg',
-  'plan-3': 'https://i.ibb.co/qFWHgfxt/plan-3-ibeju.jpg',
-  'plan-4': 'https://i.ibb.co/67Ssf6gs/plan-4-lekki2.jpg',
-  'plan-5': 'https://i.ibb.co/G42V9rPd/plan-5-lekki1.jpg',
-  'plan-6': 'https://i.ibb.co/TBkXWGvj/plan-6-banana.jpg',
-  'plan-7': 'https://i.ibb.co/svbPTMWy/plan-7-victoria.jpg',
-  'plan-8': 'https://i.ibb.co/JjzjYcYN/plan-8-ogun.jpg',
-  'terra-alpha': 'https://i.ibb.co/m5QB1yzL/plan-1-mowe.jpg',
-  'terra-prime': 'https://i.ibb.co/XrP2wBs7/plan-2-epe.jpg',
+// ⭐ Two images per plan — served from /public/plans/
+const PLAN_IMAGES: Record<string, [string, string]> = {
+  'plan-1': ['/plan/plan-1-a.png', '/plan/plan-1-b.png'],
+  'plan-2': ['/plan/plan-2-a.png', '/plan/plan-2-b.png'],
+  'plan-3': ['/plan/plan-3-a.png', '/plan/plan-3-b.png'],
+  'plan-4': ['/plan/plan-4-a.png', '/plan/plan-4-b.png'],
+  'plan-5': ['/plan/plan-5-a.png', '/plan/plan-5-b.png'],
+  'plan-6': ['/plan/plan-6-a.png', '/plan/plan-6-b.png'],
+  'plan-7': ['/plan/plan-7-a.png', '/plan/plan-7-b.png'],
+  'plan-8': ['/plan/plan-8-a.png', '/plan/plan-8-b.png'],
 };
 
+// ⭐ Locations
 const PLAN_LOCATIONS: Record<string, string> = {
   'plan-1': 'Mowe, Ogun',
   'plan-2': 'Epe, Lagos',
@@ -142,8 +62,6 @@ const PLAN_LOCATIONS: Record<string, string> = {
   'plan-6': 'Banana Island, Lagos',
   'plan-7': 'Victoria Island, Lagos',
   'plan-8': 'Ikoyi, Lagos',
-  'terra-alpha': 'Abuja FCT',
-  'terra-prime': 'Banana Island, Lagos',
 };
 
 export function ProductsScreen() {
@@ -160,7 +78,6 @@ export function ProductsScreen() {
     | null
   >(null);
 
-  // Auto-seed plans using FIXED IDs — no duplicates possible
   const seedPlansIfNeeded = useCallback(async () => {
     try {
       console.log('🔍 Checking plans collection...');
@@ -180,11 +97,7 @@ export function ProductsScreen() {
         const planId = `plan-${i + 1}`;
         const planRef = doc(db, 'plans', planId);
 
-        await setDoc(planRef, {
-          ...plan,
-          created_at: serverTimestamp(),
-        }, { merge: true });
-
+        await setDoc(planRef, { ...plan, created_at: serverTimestamp() }, { merge: true });
         console.log('✅ Seeded:', planId, '-', plan.name);
       }
 
@@ -196,20 +109,12 @@ export function ProductsScreen() {
     }
   }, []);
 
-  // Real-time listener for plans
   useEffect(() => {
-    const plansQuery = query(
-      collection(db, 'plans'),
-      orderBy('sort_order', 'asc')
-    );
-
+    const plansQuery = query(collection(db, 'plans'), orderBy('sort_order', 'asc'));
     const unsubscribe = onSnapshot(
       plansQuery,
       (snap) => {
-        const plansData = snap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Plan[];
+        const plansData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Plan[];
         console.log('📥 Plans updated:', plansData.length);
         setPlans(plansData);
         setLoading(false);
@@ -219,51 +124,30 @@ export function ProductsScreen() {
         setLoading(false);
       }
     );
-
     return () => unsubscribe();
   }, []);
 
-  // Real-time listener for user's investments
   useEffect(() => {
     if (!profile) return;
-
-    const investmentsQuery = query(
-      collection(db, 'investments'),
-      where('user_id', '==', profile.id)
-    );
-
+    const investmentsQuery = query(collection(db, 'investments'), where('user_id', '==', profile.id));
     const unsubscribe = onSnapshot(
       investmentsQuery,
       (snap) => {
-        const investmentsData = snap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Investment[];
+        const investmentsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Investment[];
         setInvestments(investmentsData);
       },
-      (error) => {
-        console.error('❌ Investments listener error:', error);
-      }
+      (error) => { console.error('❌ Investments listener error:', error); }
     );
-
     return () => unsubscribe();
   }, [profile]);
 
-  // Seed plans on mount if needed
-  useEffect(() => {
-    seedPlansIfNeeded();
-  }, [seedPlansIfNeeded]);
+  useEffect(() => { seedPlansIfNeeded(); }, [seedPlansIfNeeded]);
 
   const activePlanIds = new Set(investments.filter((i) => i.active).map((i) => i.plan_id));
 
   const handleBuy = async (plan: Plan) => {
     if (!profile) return;
-
-    if (plan.locked) {
-      setModal({ type: 'error', message: 'This plan is coming soon!' });
-      return;
-    }
-
+    if (plan.locked) { setModal({ type: 'error', message: 'This plan is coming soon!' }); return; }
     setPurchasing(plan.id);
 
     try {
@@ -275,28 +159,19 @@ export function ProductsScreen() {
           where('active', '==', true)
         );
         const existingSnap = await getDocs(existingInvestmentQuery);
-
-        if (!existingSnap.empty) {
-          throw new Error('You already own this plan');
-        }
+        if (!existingSnap.empty) throw new Error('You already own this plan');
 
         const userRef = doc(db, 'users', profile.id);
         const userSnap = await transaction.get(userRef);
-
-        if (!userSnap.exists()) {
-          throw new Error('User not found');
-        }
+        if (!userSnap.exists()) throw new Error('User not found');
 
         const userData = userSnap.data();
         const currentBalance = userData.wallet_balance || 0;
-
         if (currentBalance < plan.cost) {
           throw new Error(`Insufficient balance. Need ₦${plan.cost.toLocaleString()}, have ₦${currentBalance.toLocaleString()}`);
         }
 
-        transaction.update(userRef, {
-          wallet_balance: currentBalance - plan.cost,
-        });
+        transaction.update(userRef, { wallet_balance: currentBalance - plan.cost });
 
         const investmentRef = doc(collection(db, 'investments'));
         const now = new Date();
@@ -338,19 +213,13 @@ export function ProductsScreen() {
       console.error('Purchase error:', errorMessage);
 
       if (errorMessage.includes('Insufficient balance')) {
-        setModal({
-          type: 'insufficient',
-          planName: plan.name,
-          cost: plan.cost,
-          balance: profile.wallet_balance,
-        });
+        setModal({ type: 'insufficient', planName: plan.name, cost: plan.cost, balance: profile.wallet_balance });
       } else if (errorMessage.includes('already own')) {
         setModal({ type: 'error', message: 'You already own this plan!' });
       } else {
         setModal({ type: 'error', message: 'Something went wrong. Please try again.' });
       }
     }
-
     setPurchasing(null);
   };
 
@@ -359,13 +228,11 @@ export function ProductsScreen() {
       <div className="space-y-4 mt-1">
         {seeding && (
           <div className="glass-card p-4 text-center">
-            <Loader2 size={20} className="animate-spin text-gold mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Setting up investment plans...</p>
+            <Loader2 size={20} className="animate-spin text-[#007A33] mx-auto mb-2" />
+            <p className="text-sm text-[#4A5A50]">Setting up investment plans...</p>
           </div>
         )}
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="glass-card h-32 animate-pulse" />
-        ))}
+        {[1, 2, 3].map((i) => <div key={i} className="glass-card h-32 animate-pulse" />)}
       </div>
     );
   }
@@ -374,105 +241,23 @@ export function ProductsScreen() {
     <div>
       <div className="flex items-center justify-between mb-3 mt-1">
         <div>
-          <h2 className="text-lg font-bold text-white">Investment Plans</h2>
-          <p className="text-xs text-slate-400">Fractional real estate investments</p>
+          <h2 className="text-lg font-bold text-[#0A2A1A]">Investment Plans</h2>
+          <p className="text-xs text-[#4A5A50]">Fractional real estate investments</p>
         </div>
-        <span className="text-xs text-slate-400">
-          {plans.filter((p) => !p.locked).length} active
-        </span>
+        <span className="text-xs text-[#4A5A50]">{plans.filter((p) => !p.locked).length} active</span>
       </div>
 
       <div className="space-y-3">
-        {plans.map((plan, i) => {
-          const image = PLAN_IMAGES[plan.id] || PLAN_IMAGES[`plan-${(i % 8) + 1}`] || PLAN_IMAGES['plan-1'];
-          const location = PLAN_LOCATIONS[plan.id] || PLAN_LOCATIONS[`plan-${(i % 8) + 1}`] || 'Nigeria';
-          const isActive = activePlanIds.has(plan.id);
-          const isLocked = plan.locked;
-
-          return (
-            <div
-              key={plan.id}
-              className="glass-card p-3 animate-slide-up"
-              style={{ animationDelay: `${i * 50}ms` }}
-            >
-              <div className="flex gap-3">
-                {/* Left: Image thumbnail */}
-                <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-obsidian-border/40 bg-midnight-50/40">
-                  <img
-                    src={image}
-                    alt={plan.name}
-                    className={`w-full h-full object-cover ${isLocked ? 'grayscale opacity-50' : ''}`}
-                  />
-                </div>
-
-                {/* Middle: Details */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-sm font-bold text-white truncate">{plan.name}</h3>
-                    {isLocked && (
-                      <Lock size={11} className="text-slate-500 flex-shrink-0" />
-                    )}
-                    {isActive && (
-                      <CheckCircle2 size={11} className="text-emerald flex-shrink-0" />
-                    )}
-                  </div>
-
-                  <p className="text-[10px] text-slate-500 truncate mb-1.5">{location}</p>
-
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="text-slate-400">Price:</span>
-                      <span className="text-white font-semibold">{formatNaira(plan.cost)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="text-slate-400">Validity:</span>
-                      <span className="text-slate-300 font-medium">{plan.duration_days} days</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="text-slate-400">Daily income:</span>
-                      <span className="text-emerald font-semibold">{formatNaira(plan.daily_yield)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="text-slate-400">Total income:</span>
-                      <span className="text-gold font-semibold">{formatNaira(plan.total_return)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right: Buy button */}
-                <div className="flex items-center flex-shrink-0">
-                  {isLocked ? (
-                    <button
-                      disabled
-                      className="px-4 py-2 rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-500 text-xs font-semibold cursor-not-allowed whitespace-nowrap"
-                    >
-                      Coming soon
-                    </button>
-                  ) : isActive ? (
-                    <button
-                      disabled
-                      className="px-4 py-2 rounded-lg bg-emerald/15 border border-emerald/30 text-emerald text-xs font-semibold cursor-default whitespace-nowrap flex items-center gap-1"
-                    >
-                      <CheckCircle2 size={12} /> Owned
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleBuy(plan)}
-                      disabled={purchasing === plan.id}
-                      className="btn-gold px-5 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50"
-                    >
-                      {purchasing === plan.id ? (
-                        <Loader2 size={13} className="animate-spin" />
-                      ) : (
-                        'BUY'
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {plans.map((plan, i) => (
+          <PlanCard
+            key={plan.id}
+            plan={plan}
+            index={i}
+            isActive={activePlanIds.has(plan.id)}
+            purchasing={purchasing === plan.id}
+            onBuy={() => handleBuy(plan)}
+          />
+        ))}
       </div>
 
       {modal && <Modal modal={modal} onClose={() => setModal(null)} />}
@@ -480,66 +265,148 @@ export function ProductsScreen() {
   );
 }
 
-function Modal({
-  modal,
-  onClose,
+// ============ PLAN CARD WITH 2-IMAGE CAROUSEL ============
+function PlanCard({
+  plan,
+  index,
+  isActive,
+  purchasing,
+  onBuy,
 }: {
-  modal:
-    | { type: 'success'; planName: string }
-    | { type: 'insufficient'; planName: string; cost: number; balance: number }
-    | { type: 'error'; message: string };
+  plan: Plan;
+  index: number;
+  isActive: boolean;
+  purchasing: boolean;
+  onBuy: () => void;
+}) {
+  const images = PLAN_IMAGES[plan.id] || PLAN_IMAGES[`plan-${(index % 8) + 1}`] || ['/plans/plan-1-a.png', '/plans/plan-1-b.png'];
+  const location = PLAN_LOCATIONS[plan.id] || PLAN_LOCATIONS[`plan-${(index % 8) + 1}`] || 'Nigeria';
+  const isLocked = plan.locked;
+
+  const [imgIndex, setImgIndex] = useState(0);
+
+  // ⭐ Swap between the 2 images every 2 seconds
+  useEffect(() => {
+    if (isLocked) return; // no need to animate locked plans
+    const id = setInterval(() => {
+      setImgIndex((n) => (n + 1) % images.length);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [images.length, isLocked]);
+
+  return (
+    <div className="glass-card p-3 animate-slide-up" style={{ animationDelay: `${index * 50}ms` }}>
+      <div className="flex gap-3">
+        {/* ⭐ Two stacked images with fade transition */}
+        <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-[#E8EDE8] bg-[#F5F7F5] relative">
+          {images.map((src, i) => (
+            <img
+              key={src}
+              src={src}
+              alt={`${plan.name} ${i + 1}`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out ${
+                isLocked ? 'grayscale opacity-50' : ''
+              }`}
+              style={{ opacity: i === imgIndex ? 1 : 0 }}
+              draggable={false}
+            />
+          ))}
+          {/* Dot indicator */}
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
+            {images.map((_, i) => (
+              <span
+                key={i}
+                className={`h-1 rounded-full transition-all duration-300 ${
+                  i === imgIndex ? 'w-3 bg-white' : 'w-1 bg-white/60'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-sm font-bold text-[#0A2A1A] truncate">{plan.name}</h3>
+            {isLocked && <Lock size={11} className="text-[#8A9A90] flex-shrink-0" />}
+            {isActive && <CheckCircle2 size={11} className="text-[#00A04A] flex-shrink-0" />}
+          </div>
+
+          <p className="text-[10px] text-[#8A9A90] truncate mb-1.5">{location}</p>
+
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-[#4A5A50]">Price:</span>
+              <span className="text-[#0A2A1A] font-semibold">{formatNaira(plan.cost)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-[#4A5A50]">Validity:</span>
+              <span className="text-[#4A5A50] font-medium">{plan.duration_days} days</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-[#4A5A50]">Daily income:</span>
+              <span className="text-[#00A04A] font-semibold">{formatNaira(plan.daily_yield)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-[#4A5A50]">Total income:</span>
+              <span className="text-[#007A33] font-semibold">{formatNaira(plan.total_return)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center flex-shrink-0">
+          {isLocked ? (
+            <button disabled className="px-4 py-2 rounded-lg bg-[#F5F7F5] border border-[#E8EDE8] text-[#8A9A90] text-xs font-semibold cursor-not-allowed whitespace-nowrap">
+              Coming soon
+            </button>
+          ) : isActive ? (
+            <button disabled className="px-4 py-2 rounded-lg bg-[#00A04A]/15 border border-[#00A04A]/30 text-[#00A04A] text-xs font-semibold cursor-default whitespace-nowrap flex items-center gap-1">
+              <CheckCircle2 size={12} /> Owned
+            </button>
+          ) : (
+            <button onClick={onBuy} disabled={purchasing} className="btn-gold px-5 py-2 text-xs font-bold whitespace-nowrap disabled:opacity-50">
+              {purchasing ? <Loader2 size={13} className="animate-spin" /> : 'BUY'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ MODAL ============
+function Modal({ modal, onClose }: {
+  modal: { type: 'success'; planName: string } | { type: 'insufficient'; planName: string; cost: number; balance: number } | { type: 'error'; message: string };
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="glass-card w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div className="glass-card w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         {modal.type === 'success' && (
           <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-emerald/15 border border-emerald/40 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={32} className="text-emerald" />
+            <div className="w-16 h-16 rounded-full bg-[#00A04A]/15 border border-[#00A04A]/40 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} className="text-[#00A04A]" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-1.5">Purchase Successful</h2>
-            <p className="text-sm text-slate-400 mb-5">
-              You've purchased{' '}
-              <span className="text-gold font-semibold">{modal.planName}</span>. Daily yields
-              are now active and will be credited to your wallet every 24 hours.
+            <h2 className="text-lg font-bold text-[#0A2A1A] mb-1.5">Purchase Successful</h2>
+            <p className="text-sm text-[#4A5A50] mb-5">
+              You've purchased <span className="text-[#007A33] font-semibold">{modal.planName}</span>. Daily yields are now active and will be credited to your wallet every 24 hours.
             </p>
-            <button onClick={onClose} className="btn-emerald w-full">
-              Great!
-            </button>
+            <button onClick={onClose} className="btn-emerald w-full">Great!</button>
           </div>
         )}
 
         {modal.type === 'insufficient' && (
           <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={32} className="text-gold" />
+            <div className="w-16 h-16 rounded-full bg-[#007A33]/15 border border-[#007A33]/40 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={32} className="text-[#007A33]" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-1.5">Insufficient Balance</h2>
-            <p className="text-sm text-slate-400 mb-5">
-              You need{' '}
-              <span className="text-gold font-semibold">{formatNaira(modal.cost)}</span> to
-              purchase <span className="text-white font-semibold">{modal.planName}</span>, but
-              your wallet balance is{' '}
-              <span className="text-red-400 font-semibold">{formatNaira(modal.balance)}</span>.
-              <br />
-              <br />
-              Please top up your wallet via the Deposit section.
+            <h2 className="text-lg font-bold text-[#0A2A1A] mb-1.5">Insufficient Balance</h2>
+            <p className="text-sm text-[#4A5A50] mb-5">
+              You need <span className="text-[#007A33] font-semibold">{formatNaira(modal.cost)}</span> to purchase <span className="text-[#0A2A1A] font-semibold">{modal.planName}</span>, but your wallet balance is <span className="text-red-500 font-semibold">{formatNaira(modal.balance)}</span>.
+              <br /><br />Please top up your wallet via the Deposit section.
             </p>
             <div className="flex gap-3">
-              <button onClick={onClose} className="btn-ghost flex-1 text-sm">
-                Later
-              </button>
-              <button
-                onClick={onClose}
-                className="btn-gold flex-1 text-sm flex items-center justify-center gap-1.5"
-              >
+              <button onClick={onClose} className="btn-ghost flex-1 text-sm">Later</button>
+              <button onClick={onClose} className="btn-gold flex-1 text-sm flex items-center justify-center gap-1.5">
                 <Calendar size={15} /> Top Up
               </button>
             </div>
@@ -549,13 +416,11 @@ function Modal({
         {modal.type === 'error' && (
           <div className="text-center">
             <div className="w-16 h-16 rounded-full bg-red-500/15 border border-red-500/40 flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={32} className="text-red-400" />
+              <AlertCircle size={32} className="text-red-500" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-1.5">Something went wrong</h2>
-            <p className="text-sm text-slate-400 mb-5">{modal.message}</p>
-            <button onClick={onClose} className="btn-ghost w-full">
-              Close
-            </button>
+            <h2 className="text-lg font-bold text-[#0A2A1A] mb-1.5">Something went wrong</h2>
+            <p className="text-sm text-[#4A5A50] mb-5">{modal.message}</p>
+            <button onClick={onClose} className="btn-ghost w-full">Close</button>
           </div>
         )}
       </div>

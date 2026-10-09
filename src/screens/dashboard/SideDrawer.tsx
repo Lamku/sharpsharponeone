@@ -45,7 +45,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
           open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
@@ -53,34 +53,34 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
 
       {/* Drawer */}
       <aside
-        className={`fixed top-0 left-0 h-full w-[85%] max-w-sm bg-[#0f0f16] border-r border-slate-800/50 z-50 transform transition-transform duration-300 flex flex-col ${
+        className={`fixed top-0 left-0 h-full w-[85%] max-w-sm bg-white border-r border-[#E8EDE8] z-50 transform transition-transform duration-300 flex flex-col ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800/50">
+        <div className="flex items-center justify-between p-5 border-b border-[#E8EDE8] bg-gradient-to-br from-[#007A33] to-[#005A26]">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold/20 to-emerald/10 border border-gold/30 flex items-center justify-center">
-              <TrendingUp size={18} className="text-gold" />
+            <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/25 flex items-center justify-center">
+              <TrendingUp size={18} className="text-white" />
             </div>
             <div>
               <p className="text-sm font-bold text-white">Investment Progress</p>
-              <p className="text-[10px] text-slate-500">Real-time tracking</p>
+              <p className="text-[10px] text-white/70">Real-time tracking</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-white hover:bg-white/25 transition-colors"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-[#F5F7F5]">
           {/* Quick nav */}
           <div className="mb-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2 px-1">
+            <p className="text-[10px] uppercase tracking-wider text-[#4A5A50] font-semibold mb-2 px-1">
               Navigate
             </p>
             <div className="space-y-1">
@@ -93,8 +93,8 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
                     onClick={() => handleNavigate(item.key)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
                       isActive
-                        ? 'bg-gold/15 text-gold border border-gold/30'
-                        : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                        ? 'bg-[#007A33] text-white shadow-sm'
+                        : 'bg-white text-[#4A5A50] border border-[#E8EDE8] hover:bg-[#007A33]/5'
                     }`}
                   >
                     <Icon size={16} />
@@ -105,14 +105,14 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
             </div>
           </div>
 
-          {/* ⭐ Contact Support button — ADD IT HERE */}
-          <div className="border-t border-slate-800/50 pt-4 mb-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-2 px-1">
+          {/* Contact Support */}
+          <div className="pt-4 mb-4">
+            <p className="text-[10px] uppercase tracking-wider text-[#4A5A50] font-semibold mb-2 px-1">
               Need Help?
             </p>
             <button
               onClick={handleSupport}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 text-sm font-semibold hover:bg-sky-500/25 transition-all w-full"
+              className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#007A33] text-white text-sm font-semibold hover:bg-[#005A26] transition-all w-full shadow-sm"
             >
               <Headphones size={16} />
               Contact Support
@@ -120,12 +120,12 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
           </div>
 
           {/* Investment Progress */}
-          <div className="border-t border-slate-800/50 pt-4">
+          <div className="pt-4 border-t border-[#E8EDE8]">
             <div className="flex items-center justify-between mb-3 px-1">
-              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+              <p className="text-[10px] uppercase tracking-wider text-[#4A5A50] font-semibold">
                 My Investments
               </p>
-              <Info size={12} className="text-slate-500" />
+              <Info size={12} className="text-[#4A5A50]" />
             </div>
             <InvestmentProgress />
           </div>

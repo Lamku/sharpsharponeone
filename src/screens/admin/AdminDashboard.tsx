@@ -16,7 +16,7 @@ import { NOTIFICATION_TEMPLATES, getTemplatesByCategory } from '@/lib/notificati
 import { payReferralCommission } from '@/lib/referral';
 import {
   collection, query, getDocs, doc, updateDoc, addDoc, deleteDoc,
-  where, serverTimestamp, runTransaction, onSnapshot, getDoc,
+  where, serverTimestamp, runTransaction, onSnapshot, getDoc, orderBy,
 } from 'firebase/firestore';
 import { formatNaira, formatTimeAgo } from '@/lib/format';
 
@@ -251,6 +251,109 @@ export function AdminDashboard() {
     setRefreshing(true);
     await loadAllData();
   };
+
+// ==================================================
+// ⭐ REAL-TIME LISTENERS
+// ==================================================
+
+// Users live
+useEffect(() => {
+  if (!admin) return;
+  const unsub = onSnapshot(
+    collection(db, 'users'),
+    (snap) => {
+      const usersData = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as UserProfile[];
+      setUsers(usersData);
+      const totalBalance = usersData.reduce((sum, u) => sum + (u.wallet_balance || 0), 0);
+      setStats((prev) => ({ ...prev, totalUsers: usersData.length, totalBalance }));
+    },
+    (err) => console.error('users listener:', err)
+  );
+  return () => unsub();
+}, [admin]);
+
+// Withdrawals live
+useEffect(() => {
+  if (!admin) return;
+  const q = query(collection(db, 'withdrawals'), orderBy('created_at', 'desc'));
+
+  const unsub = onSnapshot(
+    q,
+    (snap) => {
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Withdrawal[];
+
+      const enriched = data
+        .map((w) => {
+          const user = users.find((u) => u.id === w.user_id);
+          return { ...w, userName: user?.full_name || 'Unknown', userPhone: user?.phone || 'N/A' };
+        })
+        .sort((a, b) => {
+          const at = a.created_at?.toDate?.()?.getTime() || 0;
+          const bt = b.created_at?.toDate?.()?.getTime() || 0;
+          return bt - at;
+        });
+
+      setWithdrawals(enriched);
+
+      const pending = enriched.filter(
+        (w) => w.status === 'pending' || w.status === 'withdrawal_in_progress'
+      ).length;
+      const withdrawn = enriched
+        .filter((w) => w.status === 'approved' || w.status === 'successful')
+        .reduce((sum, w) => sum + (w.amount || 0), 0);
+
+      setStats((prev) => ({
+        ...prev,
+        pendingWithdrawals: pending,
+        totalWithdrawn: withdrawn,
+      }));
+    },
+    (err) => console.error('withdrawals listener:', err)
+  );
+
+  return () => unsub();
+}, [admin, users]);
+
+// Transactions + deposits live
+useEffect(() => {
+  if (!admin) return;
+  const unsub = onSnapshot(
+    collection(db, 'transactions'),
+    (snap) => {
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Transaction[];
+      const sorted = data.sort((a, b) => {
+        const at = a.created_at?.toDate?.()?.getTime() || 0;
+        const bt = b.created_at?.toDate?.()?.getTime() || 0;
+        return bt - at;
+      });
+
+      setTransactions(sorted);
+
+      const depositsOnly = sorted
+        .filter((t) => t.type === 'deposit')
+        .map((d) => {
+          const user = users.find((u) => u.id === d.user_id);
+          return { ...d, userName: user?.full_name || 'Unknown', userPhone: user?.phone || 'N/A' };
+        }) as Deposit[];
+
+      setDeposits(depositsOnly);
+
+      const pendingDeposits = depositsOnly.filter(
+        (d) => d.status === 'pending' && d.method !== 'paystack'
+      ).length;
+
+      setStats((prev) => ({
+        ...prev,
+        pendingDeposits,
+        totalInvestments: sorted.filter((t) => t.type === 'investment').length,
+      }));
+    },
+    (err) => console.error('transactions listener:', err)
+  );
+
+  return () => unsub();
+}, [admin, users]);
+
   // ============ WITHDRAWAL ACTIONS (DUAL MODE) ============
   const handleWithdrawalAction = async (
     withdrawalId: string,

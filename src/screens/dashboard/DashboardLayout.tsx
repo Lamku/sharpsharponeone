@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
-import { LogOut, Bell, TrendingUp, Wallet as WalletIcon, ArrowDownToLine, ArrowUpFromLine, CalendarCheck, Clock, Sparkles, ChevronRight, AlertCircle, Building2, Shield, Info, Menu, Headphones } from 'lucide-react';
+import { LogOut, Bell, TrendingUp, Wallet as WalletIcon, ArrowDownToLine, ArrowUpFromLine, CalendarCheck, Clock, Sparkles, ChevronRight, AlertCircle, Building2, Shield, Info, Menu, Headphones, Send, Users, Zap } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { NotificationBanner } from '@/components/NotificationBar';
@@ -8,8 +8,7 @@ import { PlatformSettings, subscribeToSettings, DEFAULT_SETTINGS } from '@/lib/s
 import { ManualDepositSection } from './ManualDepositSection';
 import { notifyWithdrawal } from '@/lib/telegram';
 import { SupportChat } from '@/components/SupportChat';
-// import { DraggableSupportButton } from '@/components/DraggableSupportButton';
-// import { TelegramButton } from '@/components/TelegramButton';
+import { HeinekenMemorySection } from '@/components/HeinekenMemorySection';
 import {
   collection,
   doc,
@@ -22,7 +21,6 @@ import {
 import { formatNaira, formatCountdown } from '@/lib/format';
 import { Logo } from '@/components/Logo';
 import { BottomNav, type TabKey } from '@/components/BottomNav';
-import { DepositSection } from './DepositSection';
 import { SideDrawer } from './SideDrawer';
 import { PaystackStorefront } from './PaystackStorefront';
 
@@ -74,10 +72,34 @@ const NIGERIAN_BANKS = [
   { code: '100', name: 'SunTrust Bank' },
 ];
 
-const WITHDRAWAL_FEE_PERCENT = 18;
-const MINIMUM_WITHDRAWAL = 1500;
-const WELCOME_BONUS = 1500;
+const WITHDRAWAL_FEE_PERCENT = 15;
+const MINIMUM_WITHDRAWAL = 400;
+const WELCOME_BONUS = 500;
 const WITHDRAWAL_LOCK_MS = 24 * 60 * 60 * 1000;
+
+// Heineken-inspired color palette
+const H = {
+  green: '#007A33',
+  greenDark: '#005A26',
+  greenLight: '#00A04A',
+  white: '#FFFFFF',
+  offWhite: '#F5F7F5',
+  lightGray: '#E8EDE8',
+  textDark: '#0A2A1A',
+  textMid: '#4A5A50',
+};
+
+// ⭐ Portfolio slide images (served from /public/portfolio/)
+const PORTFOLIO_SLIDES = [
+  '/portfolio/slide-1.png',
+  '/portfolio/slide-2.png',
+  '/portfolio/slide-3.png',
+  '/portfolio/slide-4.png',
+  '/portfolio/slide-5.png',
+  '/portfolio/slide-6.png',
+  '/portfolio/slide-7.png',
+  '/portfolio/slide-8.png',
+];
 
 export function DashboardLayout() {
   const { profile, session, loading, signOut, refreshProfile } = useAuth();
@@ -94,7 +116,9 @@ export function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(DEFAULT_SETTINGS);
 
-  // ⭐ Prevent overlapping accrual runs
+  // ⭐ Carousel state
+  const [slideIndex, setSlideIndex] = useState(0);
+
   const accrualRunning = useRef(false);
 
   useEffect(() => {
@@ -106,12 +130,19 @@ export function DashboardLayout() {
     return () => clearInterval(interval);
   }, []);
 
+  // ⭐ Auto-advance carousel every 3 seconds
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSlideIndex((i) => (i + 1) % PORTFOLIO_SLIDES.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     const unsub = subscribeToSettings((s) => setPlatformSettings(s));
     return () => unsub();
   }, []);
 
-  // Load user's investments and check deposit history
   useEffect(() => {
     if (!profile) return;
 
@@ -143,7 +174,7 @@ export function DashboardLayout() {
     loadUserData();
   }, [profile]);
 
-  // ⭐ CLIENT-SIDE YIELD ACCRUAL
+  // Yield accrual (unchanged)
   useEffect(() => {
     if (!profile) return;
 
@@ -194,30 +225,20 @@ export function DashboardLayout() {
 
         if (updates.length > 0 && totalYield > 0) {
           await runTransaction(db, async (transaction) => {
-            // ============ ALL READS FIRST ============
-            const investmentReads: Array<{
-              ref: any;
-              data: Investment;
-              update: UpdateData;
-            }> = [];
+            const investmentReads: Array<{ ref: any; data: Investment; update: UpdateData }> = [];
 
             for (const update of updates) {
               const ref = doc(db, 'investments', update.id);
-              const invSnap = await transaction.get(ref);   // READ
+              const invSnap = await transaction.get(ref);
               if (!invSnap.exists()) continue;
-              investmentReads.push({
-                ref,
-                data: invSnap.data() as Investment,
-                update,
-              });
+              investmentReads.push({ ref, data: invSnap.data() as Investment, update });
             }
 
             const userRef = doc(db, 'users', profile.id);
-            const userSnap = await transaction.get(userRef);  // READ
+            const userSnap = await transaction.get(userRef);
             if (!userSnap.exists()) throw new Error('User not found');
             const userData = userSnap.data();
 
-            // ============ NOW ALL WRITES ============
             for (const { ref, data: invData, update } of investmentReads) {
               const durationDays = invData.duration_days || 0;
               const totalReturn = invData.total_return || (invData.daily_yield || 0) * durationDays;
@@ -256,17 +277,14 @@ export function DashboardLayout() {
     };
 
     accrueYields();
-
-    // ⭐ Also run every 60 seconds while the user is on the site
     const yieldInterval = setInterval(accrueYields, 60 * 1000);
-
     return () => clearInterval(yieldInterval);
   }, [profile, refreshProfile]);
 
   if (loading || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-gold/30 border-t-gold animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F7F5]">
+        <div className="w-10 h-10 rounded-full border-2 border-[#007A33]/30 border-t-[#007A33] animate-spin" />
       </div>
     );
   }
@@ -277,20 +295,19 @@ export function DashboardLayout() {
     lastWithdrawRaw?.toDate?.() ||
     (lastWithdrawRaw instanceof Date ? lastWithdrawRaw : null);
 
- // ⭐ Safely convert last_check_in (Firestore Timestamp | Date | number | string) to ms
-const lastCheckIn = (() => {
-  const v = profile.last_check_in;
-  if (!v) return 0;
-  if (typeof v?.toDate === 'function') return v.toDate().getTime();  // Firestore Timestamp
-  if (typeof v?.seconds === 'number') return v.seconds * 1000;        // raw Timestamp shape
-  if (v instanceof Date) return v.getTime();
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? 0 : d.getTime();
-  }
-  return 0;
-})();
+  const lastCheckIn = (() => {
+    const v = profile.last_check_in;
+    if (!v) return 0;
+    if (typeof v?.toDate === 'function') return v.toDate().getTime();
+    if (typeof v?.seconds === 'number') return v.seconds * 1000;
+    if (v instanceof Date) return v.getTime();
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string') {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+    return 0;
+  })();
   const nextCheckIn = lastCheckIn + 24 * 60 * 60 * 1000;
   const canCheckIn = now >= nextCheckIn;
   const timeUntilNext = nextCheckIn - now;
@@ -301,9 +318,8 @@ const lastCheckIn = (() => {
   const withdrawLockHours = Math.floor(msUntilNextWithdraw / (60 * 60 * 1000));
   const withdrawLockMinutes = Math.floor((msUntilNextWithdraw % (60 * 60 * 1000)) / (60 * 1000));
 
-    const handleCheckIn = async () => {
+  const handleCheckIn = async () => {
     if (!profile?.id) return;
-
     setCheckInLoading(true);
     setCheckInMsg(null);
 
@@ -311,26 +327,17 @@ const lastCheckIn = (() => {
       const result = await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', profile.id);
         const userSnap = await transaction.get(userRef);
-
-        if (!userSnap.exists()) {
-          throw new Error('User not found');
-        }
+        if (!userSnap.exists()) throw new Error('User not found');
 
         const userData = userSnap.data();
-
-        // ⭐ Safely read last_check_in (handles Firestore Timestamp, Date, number, string)
         const rawLastCheckIn = userData?.last_check_in;
         let lastCheckInMs = 0;
         if (rawLastCheckIn) {
-          if (typeof rawLastCheckIn?.toDate === 'function') {
-            lastCheckInMs = rawLastCheckIn.toDate().getTime();
-          } else if (typeof rawLastCheckIn?.seconds === 'number') {
-            lastCheckInMs = rawLastCheckIn.seconds * 1000;
-          } else if (rawLastCheckIn instanceof Date) {
-            lastCheckInMs = rawLastCheckIn.getTime();
-          } else if (typeof rawLastCheckIn === 'number') {
-            lastCheckInMs = rawLastCheckIn;
-          } else if (typeof rawLastCheckIn === 'string') {
+          if (typeof rawLastCheckIn?.toDate === 'function') lastCheckInMs = rawLastCheckIn.toDate().getTime();
+          else if (typeof rawLastCheckIn?.seconds === 'number') lastCheckInMs = rawLastCheckIn.seconds * 1000;
+          else if (rawLastCheckIn instanceof Date) lastCheckInMs = rawLastCheckIn.getTime();
+          else if (typeof rawLastCheckIn === 'number') lastCheckInMs = rawLastCheckIn;
+          else if (typeof rawLastCheckIn === 'string') {
             const d = new Date(rawLastCheckIn);
             lastCheckInMs = isNaN(d.getTime()) ? 0 : d.getTime();
           }
@@ -338,16 +345,13 @@ const lastCheckIn = (() => {
 
         const now = new Date();
         const hoursSinceLastCheckIn = (now.getTime() - lastCheckInMs) / (1000 * 60 * 60);
-
-        if (hoursSinceLastCheckIn < 24) {
-          throw new Error('Already checked in today');
-        }
+        if (hoursSinceLastCheckIn < 24) throw new Error('Already checked in today');
 
         const bonusAmount = 200;
         transaction.update(userRef, {
           wallet_balance: (userData?.wallet_balance || 0) + bonusAmount,
           portfolio_value: (userData?.portfolio_value || 0) + bonusAmount,
-          last_check_in: serverTimestamp(),   // ⭐ use serverTimestamp for consistency
+          last_check_in: serverTimestamp(),
         });
 
         const transactionRef = doc(collection(db, 'transactions'));
@@ -365,21 +369,16 @@ const lastCheckIn = (() => {
 
       setCheckInMsg({ ok: true, text: result.message });
       await refreshProfile();
-      // Force re-render so the countdown recomputes immediately
       setNow(Date.now());
     } catch (error: any) {
       const msg = error?.message || '';
       setCheckInMsg({
         ok: false,
-        text:
-          msg === 'Already checked in today'
-            ? 'Already checked in today!'
-            : 'Something went wrong. Try again.',
+        text: msg === 'Already checked in today' ? 'Already checked in today!' : 'Something went wrong. Try again.',
       });
     } finally {
       setCheckInLoading(false);
     }
-
     setTimeout(() => setCheckInMsg(null), 4000);
   };
 
@@ -391,7 +390,6 @@ const lastCheckIn = (() => {
     accountName: string
   ) => {
     if (amount <= 0) return;
-
     if (!canWithdraw) {
       throw new Error(
         `You can only withdraw once every 24 hours. Next withdrawal in ${withdrawLockHours}h ${withdrawLockMinutes}m.`
@@ -405,17 +403,11 @@ const lastCheckIn = (() => {
       await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', profile.id);
         const userSnap = await transaction.get(userRef);
-
-        if (!userSnap.exists()) {
-          throw new Error('User not found');
-        }
+        if (!userSnap.exists()) throw new Error('User not found');
 
         const userData = userSnap.data();
         const currentBalance = userData?.wallet_balance || 0;
-
-        if (currentBalance < amount) {
-          throw new Error('Insufficient balance');
-        }
+        if (currentBalance < amount) throw new Error('Insufficient balance');
 
         const freshLastWithdraw = userData?.last_withdrawal_at?.toDate?.();
         if (freshLastWithdraw) {
@@ -424,14 +416,11 @@ const lastCheckIn = (() => {
             const remaining = WITHDRAWAL_LOCK_MS - msSince;
             const hrs = Math.floor(remaining / (60 * 60 * 1000));
             const mins = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-            throw new Error(
-              `You can only withdraw once every 24 hours. Next withdrawal in ${hrs}h ${mins}m.`
-            );
+            throw new Error(`You can only withdraw once every 24 hours. Next withdrawal in ${hrs}h ${mins}m.`);
           }
         }
 
         const hasBoughtProduct = userInvestments.some(inv => inv.amount > 0);
-
         if (!hasBoughtProduct) {
           const withdrawableAmount = Math.max(0, currentBalance - WELCOME_BONUS);
           if (amount > withdrawableAmount) {
@@ -450,8 +439,8 @@ const lastCheckIn = (() => {
         const withdrawalRef = doc(collection(db, 'withdrawals'));
         transaction.set(withdrawalRef, {
           user_id: profile.id,
-          amount: amount,
-          fee: fee,
+          amount,
+          fee,
           net_amount: netAmount,
           fee_percent: WITHDRAWAL_FEE_PERCENT,
           bank_code: bankCode,
@@ -465,7 +454,7 @@ const lastCheckIn = (() => {
         const transactionRef = doc(collection(db, 'transactions'));
         transaction.set(transactionRef, {
           user_id: profile.id,
-          amount: amount,
+          amount,
           type: 'withdrawal',
           description: `Withdrawal to ${bankName} (${accountNumber.slice(-4)})`,
           status: 'pending',
@@ -473,7 +462,6 @@ const lastCheckIn = (() => {
         });
       });
 
-      // ⭐ Telegram — notify admin of withdrawal request
       try {
         await notifyWithdrawal({
           userName: profile.full_name || 'Unknown',
@@ -501,13 +489,20 @@ const lastCheckIn = (() => {
     ? profile.wallet_balance
     : Math.max(0, profile.wallet_balance - WELCOME_BONUS);
 
+ const getGreeting = () => {
+  const hour = new Date(now).getHours();   // ⬅️ depends on `now` state
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-28 bg-[#F5F7F5]">
+      {/* ============ HEADER (White + Green) ============ */}
       <header className="px-5 pt-5 pb-3 flex items-center justify-between max-w-md mx-auto">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setDrawerOpen(true)}
-            className="w-9 h-9 rounded-xl bg-obsidian-light/60 border border-obsidian-border flex items-center justify-center text-slate-400 hover:text-gold transition-colors"
+            className="w-9 h-9 rounded-xl bg-white border border-[#E8EDE8] flex items-center justify-center text-[#007A33] shadow-sm"
             aria-label="Open menu"
           >
             <Menu size={18} />
@@ -515,13 +510,13 @@ const lastCheckIn = (() => {
           <Logo size="sm" />
         </div>
         <div className="flex items-center gap-3">
-          <button className="relative w-9 h-9 rounded-xl bg-obsidian-light/60 border border-obsidian-border flex items-center justify-center text-slate-400 hover:text-gold transition-colors">
+          <button className="relative w-9 h-9 rounded-xl bg-white border border-[#E8EDE8] flex items-center justify-center text-[#4A5A50] shadow-sm">
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#00A04A]" />
           </button>
           <button
             onClick={signOut}
-            className="w-9 h-9 rounded-xl bg-obsidian-light/60 border border-obsidian-border flex items-center justify-center text-slate-400 hover:text-red-400 transition-colors"
+            className="w-9 h-9 rounded-xl bg-white border border-[#E8EDE8] flex items-center justify-center text-[#4A5A50] shadow-sm"
           >
             <LogOut size={18} />
           </button>
@@ -531,61 +526,86 @@ const lastCheckIn = (() => {
       <main className="px-5 max-w-md mx-auto">
         <NotificationBanner />
 
-        {/* Portfolio card with background image */}
-        <div className="glass-card mb-4 relative overflow-hidden animate-slide-up">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: "url('/plan-7-victoria.jpg')" }}
-            aria-hidden="true"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/65 to-black/85" />
-          <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-gold/10 blur-2xl" />
-          <div className="absolute -bottom-12 -left-12 w-40 h-40 rounded-full bg-emerald/10 blur-2xl" />
+       {/* ============ WELCOME GREETING ============ */}
+<div className="flex items-center justify-between mb-4 animate-slide-up">
+  <div>
+    <h1
+      key={getGreeting()}
+      className="text-xl font-extrabold text-[#0A2A1A] animate-fade-in"
+    >
+      {getGreeting()}!
+    </h1>
+    <p className="text-xs text-[#4A5A50]">
+      {profile.full_name?.split(' ')[0] || 'Welcome back'}
+    </p>
+  </div>
+  <div className="bg-white border border-[#E8EDE8] rounded-full px-4 py-2 shadow-sm">
+    <span className="text-xs text-[#4A5A50] font-medium">Balance </span>
+    <span className="text-sm font-bold text-[#007A33]">
+      {formatNaira(profile.wallet_balance)}
+    </span>
+  </div>
+</div>
 
-          <div className="relative p-5">
-            <p className="text-xs text-slate-200 uppercase tracking-wider font-semibold mb-1 drop-shadow">
-              Total Portfolio Value
+        {/* ============ HERO BANNER (Green + Sliding Images) ============ */}
+        <div className="rounded-3xl p-5 mb-4 relative overflow-hidden animate-slide-up shadow-lg">
+
+          {/* ⭐ Sliding background images (fade transition every 3s) */}
+          <div className="absolute inset-0 overflow-hidden rounded-3xl">
+            {PORTFOLIO_SLIDES.map((src, i) => (
+              <img
+                key={src}
+                src={src}
+                alt={`Portfolio ${i + 1}`}
+                className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
+                style={{ opacity: i === slideIndex ? 1 : 0 }}
+                draggable={false}
+              />
+            ))}
+          </div>
+
+          {/* ⭐ Very light overlay — image stays clearly visible */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/55 rounded-3xl" />
+
+          {/* ⭐ Extra top-only green tint so "Total Balance" label pops */}
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#007A33]/50 to-transparent rounded-t-3xl" />
+
+          <div className="relative">
+            <p
+              className="text-[11px] uppercase tracking-widest text-white font-semibold mb-1"
+              style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+            >
+              Total Balance
             </p>
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">
+              <span
+                className="text-3xl font-extrabold text-white tracking-tight"
+                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.9)' }}
+              >
                 {formatNaira(profile.portfolio_value)}
               </span>
-              <span className="flex items-center gap-0.5 text-xs text-emerald font-semibold">
+              <span
+                className="flex items-center gap-0.5 text-xs text-white font-semibold"
+                style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}
+              >
                 <TrendingUp size={12} /> 0.0%
               </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-black/40 backdrop-blur-sm rounded-xl p-3 border border-white/10">
-                <div className="flex items-center gap-1.5 text-slate-300 mb-1">
-                  <WalletIcon size={13} />
-                  <span className="text-[11px] font-medium">Wallet Balance</span>
-                </div>
-                <span className="text-lg font-bold text-gold">{formatNaira(profile.wallet_balance)}</span>
-              </div>
-              <div className="bg-black/40 backdrop-blur-sm rounded-xl p-3 border border-white/10">
-                <div className="flex items-center gap-1.5 text-slate-300 mb-1">
-                  <Sparkles size={13} />
-                  <span className="text-[11px] font-medium">Welcome Bonus</span>
-                </div>
-                <span className="text-lg font-bold text-emerald">₦1,500</span>
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowDeposit(true)}
-                className="btn-emerald flex items-center justify-center gap-2 py-3 text-sm"
+                className="flex items-center justify-center gap-2 py-3 text-sm rounded-2xl bg-white text-[#007A33] font-bold shadow-md hover:bg-[#F5F7F5] transition-all"
               >
                 <ArrowDownToLine size={16} /> Deposit
               </button>
               <button
                 onClick={() => setShowWithdraw(true)}
                 disabled={!canWithdraw}
-                className={`flex items-center justify-center gap-2 py-3 text-sm rounded-xl transition-all ${
+                className={`flex items-center justify-center gap-2 py-3 text-sm rounded-2xl font-bold transition-all backdrop-blur-sm ${
                   canWithdraw
-                    ? 'btn-gold'
-                    : 'bg-slate-800/60 border border-slate-700/50 text-slate-500 cursor-not-allowed'
+                    ? 'bg-white/25 text-white border border-white/50 hover:bg-white/35'
+                    : 'bg-white/10 text-white/50 border border-white/20 cursor-not-allowed'
                 }`}
               >
                 <ArrowUpFromLine size={16} /> Withdraw
@@ -593,9 +613,9 @@ const lastCheckIn = (() => {
             </div>
 
             {!canWithdraw && (
-              <div className="mt-3 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/40 backdrop-blur-sm flex items-center gap-2">
-                <Clock size={13} className="text-amber-400 flex-shrink-0" />
-                <span className="text-[11px] text-amber-200">
+              <div className="mt-3 px-3 py-2 rounded-xl bg-black/30 backdrop-blur-sm border border-white/20 flex items-center gap-2">
+                <Clock size={13} className="text-white flex-shrink-0" />
+                <span className="text-[11px] text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
                   Next withdrawal available in{' '}
                   <span className="font-bold font-mono">
                     {withdrawLockHours}h {withdrawLockMinutes}m
@@ -603,18 +623,82 @@ const lastCheckIn = (() => {
                 </span>
               </div>
             )}
+
+            {/* ⭐ Slide indicator dots (on translucent pill for visibility) */}
+            <div className="flex items-center justify-center gap-1.5 mt-4">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-sm">
+                {PORTFOLIO_SLIDES.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSlideIndex(i)}
+                    aria-label={`Go to slide ${i + 1}`}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === slideIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="glass-card p-4 mb-4 animate-slide-up" style={{ animationDelay: '60ms' }}>
+        {/* ============ EXPLORE OUR SERVICES ============ */}
+        <h2 className="text-base font-bold text-[#0A2A1A] mb-3 animate-slide-up">
+          Explore Our Services
+        </h2>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {/* Telegram Support */}
+          <button
+            onClick={() => {
+              const api = (window as any).Tawk_API;
+              if (api?.maximize) api.maximize();
+              else alert('Support chat is loading. Please try again in a moment.');
+            }}
+            className="bg-white rounded-2xl p-4 border border-[#E8EDE8] shadow-sm text-left hover:shadow-md transition-all animate-slide-up"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#007A33]/15 to-[#00A04A]/10 border border-[#007A33]/20 flex items-center justify-center mb-3">
+              <Headphones size={18} className="text-[#007A33]" />
+            </div>
+            <p className="text-sm font-bold text-[#0A2A1A] mb-0.5">Telegram service</p>
+            <p className="text-[11px] text-[#4A5A50]">Chat with our support team</p>
+          </button>
+
+          {/* Telegram Group */}
+          <a
+            href="https://t.me/+BHDMWqhc2uJjNDM0"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white rounded-2xl p-4 border border-[#E8EDE8] shadow-sm text-left hover:shadow-md transition-all animate-slide-up"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#007A33]/15 to-[#00A04A]/10 border border-[#007A33]/20 flex items-center justify-center mb-3">
+              <Send size={18} className="text-[#007A33]" />
+            </div>
+            <p className="text-sm font-bold text-[#0A2A1A] mb-0.5">Telegram group</p>
+            <p className="text-[11px] text-[#4A5A50]">Join the community channel</p>
+          </a>
+        </div>
+
+        {/* ============ FULL-WIDTH CTA BANNER ============ */}
+        {/* <div className="rounded-3xl p-5 mb-4 bg-gradient-to-r from-[#007A33] to-[#005A26] shadow-lg animate-slide-up">
+          <p className="text-sm font-bold text-white text-center leading-relaxed">
+            We're building the future of real estate investing in Nigeria.
+            <br />
+            Join thousands building wealth with us.
+          </p>
+        </div> */}
+
+        {/* ============ DAILY CHECK-IN ============ */}
+        <div className="bg-white rounded-2xl p-4 mb-4 border border-[#E8EDE8] shadow-sm animate-slide-up" style={{ animationDelay: '60ms' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-gold/20 to-emerald/10 border border-gold/30 flex items-center justify-center">
-                <CalendarCheck size={20} className="text-gold" />
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#007A33]/20 to-[#00A04A]/10 border border-[#007A33]/30 flex items-center justify-center">
+                <CalendarCheck size={20} className="text-[#007A33]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">Daily Check-In</p>
-                <p className="text-xs text-slate-400">
+                <p className="text-sm font-semibold text-[#0A2A1A]">Daily Check-In</p>
+                <p className="text-xs text-[#4A5A50]">
                   {canCheckIn ? 'Claim your ₦200 bonus now' : 'Next bonus available in'}
                 </p>
               </div>
@@ -624,12 +708,13 @@ const lastCheckIn = (() => {
                 <button
                   onClick={handleCheckIn}
                   disabled={checkInLoading}
-                  className="btn-emerald py-2.5 px-4 text-xs animate-pulse-gold"
+                  className="py-2.5 px-4 text-xs font-bold rounded-xl text-white animate-pulse-gold"
+                  style={{ backgroundColor: H.green }}
                 >
                   {checkInLoading ? 'Claiming...' : 'Claim ₦200'}
                 </button>
               ) : (
-                <div className="flex items-center gap-1.5 text-slate-400">
+                <div className="flex items-center gap-1.5 text-[#4A5A50]">
                   <Clock size={14} />
                   <span className="font-mono text-sm tabular-nums">{formatCountdown(timeUntilNext)}</span>
                 </div>
@@ -638,12 +723,48 @@ const lastCheckIn = (() => {
           </div>
           {checkInMsg && (
             <div className={`mt-3 text-xs px-3 py-2 rounded-lg ${
-              checkInMsg.ok ? 'bg-emerald/10 text-emerald border border-emerald/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'
+              checkInMsg.ok
+                ? 'bg-[#007A33]/10 text-[#007A33] border border-[#007A33]/30'
+                : 'bg-red-500/10 text-red-500 border border-red-500/30'
             }`}>
               {checkInMsg.text}
             </div>
           )}
         </div>
+
+        {/* ============ WHY CHOOSE US ============ */}
+        <div className="flex items-center gap-2 mb-3 animate-slide-up">
+          <div className="w-1 h-5 rounded-full bg-[#007A33]" />
+          <h2 className="text-base font-bold text-[#0A2A1A]">Why Choose Us</h2>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          {[
+            { icon: Shield, label: 'Secure Protection', desc: 'Multi-layer fund security' },
+            { icon: Zap, label: 'Instant Credit', desc: 'Earnings credited in seconds' },
+            { icon: Headphones, label: 'Dedicated Support', desc: '24/7 customer service' },
+          ].map(({ icon: Icon, label, desc }, i) => (
+            <div
+              key={label}
+              className="bg-white rounded-2xl p-4 border border-[#E8EDE8] shadow-sm flex items-center gap-3 animate-slide-up"
+              style={{ animationDelay: `${100 + i * 40}ms` }}
+            >
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#007A33]/15 to-[#00A04A]/10 border border-[#007A33]/20 flex items-center justify-center flex-shrink-0">
+                <Icon size={20} className="text-[#007A33]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#0A2A1A]">{label}</p>
+                <p className="text-[11px] text-[#4A5A50]">{desc}</p>
+              </div>
+              <div className="px-3 py-1 rounded-full bg-[#007A33] text-white text-[10px] font-bold">
+                On
+              </div>
+            </div>
+          ))}
+        </div>
+
+         {/* ⭐ NEW: Heineken Memory Section */}
+        <HeinekenMemorySection />
 
         <div className="animate-fade-in">
           <Outlet context={{ activeTab, setActiveTabDirect: (t: TabKey) => { setActiveTab(t); navigate(`/app/${t}`); } }} />
@@ -671,8 +792,8 @@ const lastCheckIn = (() => {
             {!platformSettings.paystackEnabled && !platformSettings.manualDepositEnabled && (
               <div className="text-center py-6">
                 <AlertCircle size={32} className="text-amber-400 mx-auto mb-3" />
-                <p className="text-sm text-white font-semibold mb-1">Deposits temporarily disabled</p>
-                <p className="text-xs text-slate-400">Please try again later.</p>
+                <p className="text-sm text-[#0A2A1A] font-semibold mb-1">Deposits temporarily disabled</p>
+                <p className="text-xs text-[#4A5A50]">Please try again later.</p>
                 <button onClick={() => setShowDeposit(false)} className="btn-ghost w-full mt-5 py-3 text-sm">
                   Close
                 </button>
@@ -680,35 +801,19 @@ const lastCheckIn = (() => {
             )}
 
             {platformSettings.paystackEnabled && platformSettings.manualDepositEnabled && (
-  <DepositTabs
-    paystack={
-      <PaystackStorefront
-        settings={platformSettings}
-        onClose={() => setShowDeposit(false)}
-      />
-    }
-    manual={
-      <ManualDepositSection
-        settings={platformSettings}
-        onClose={() => setShowDeposit(false)}
-      />
-    }
-  />
-)}
+              <DepositTabs
+                paystack={<PaystackStorefront settings={platformSettings} onClose={() => setShowDeposit(false)} />}
+                manual={<ManualDepositSection settings={platformSettings} onClose={() => setShowDeposit(false)} />}
+              />
+            )}
 
-{platformSettings.paystackEnabled && !platformSettings.manualDepositEnabled && (
-  <PaystackStorefront
-    settings={platformSettings}
-    onClose={() => setShowDeposit(false)}
-  />
-)}
+            {platformSettings.paystackEnabled && !platformSettings.manualDepositEnabled && (
+              <PaystackStorefront settings={platformSettings} onClose={() => setShowDeposit(false)} />
+            )}
 
-{!platformSettings.paystackEnabled && platformSettings.manualDepositEnabled && (
-  <ManualDepositSection
-    settings={platformSettings}
-    onClose={() => setShowDeposit(false)}
-  />
-)}
+            {!platformSettings.paystackEnabled && platformSettings.manualDepositEnabled && (
+              <ManualDepositSection settings={platformSettings} onClose={() => setShowDeposit(false)} />
+            )}
           </div>
         </div>
       )}
@@ -723,14 +828,7 @@ const lastCheckIn = (() => {
         />
       )}
 
-      {/* Live support chat (Tawk.to) */}
-          <SupportChat />
-
-       {/* ⭐ Draggable Telegram button */}
-      {/* <TelegramButton /> */}
-
-      {/* Draggable support button — opens chat on tap */}
-{/* <DraggableSupportButton /> */}
+      <SupportChat />
     </div>
   );
 }
@@ -740,11 +838,11 @@ function DepositTabs({ paystack, manual }: { paystack: React.ReactNode; manual: 
   const [tab, setTab] = useState<'paystack' | 'manual'>('paystack');
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2 mb-5 p-1 rounded-xl bg-midnight-50/60 border border-obsidian-border/40">
+      <div className="grid grid-cols-2 gap-2 mb-5 p-1 rounded-xl bg-[#F5F7F5] border border-[#E8EDE8]">
         <button
           onClick={() => setTab('paystack')}
           className={`py-2 rounded-lg text-xs font-semibold transition-all ${
-            tab === 'paystack' ? 'bg-emerald text-white' : 'text-slate-400 hover:text-slate-200'
+            tab === 'paystack' ? 'bg-[#007A33] text-white' : 'text-[#4A5A50]'
           }`}
         >
           Paystack
@@ -752,7 +850,7 @@ function DepositTabs({ paystack, manual }: { paystack: React.ReactNode; manual: 
         <button
           onClick={() => setTab('manual')}
           className={`py-2 rounded-lg text-xs font-semibold transition-all ${
-            tab === 'manual' ? 'bg-emerald text-white' : 'text-slate-400 hover:text-slate-200'
+            tab === 'manual' ? 'bg-[#007A33] text-white' : 'text-[#4A5A50]'
           }`}
         >
           Bank Transfer
@@ -803,7 +901,6 @@ function WithdrawModal({
 
   const handleSubmit = async () => {
     setError(null);
-
     if (!selectedBank) { setError('Please select a bank'); return; }
     if (!accountNumber || accountNumber.length < 10) { setError('Please enter a valid 10-digit account number'); return; }
     if (!accountName.trim()) { setError('Please enter the account name'); return; }
@@ -811,12 +908,7 @@ function WithdrawModal({
       setError(`Minimum withdrawal amount is ${formatNaira(MINIMUM_WITHDRAWAL)}`);
       return;
     }
-
-    if (!hasBoughtProduct && amountNum > max) {
-      setShowWelcomeBonusWarning(true);
-      return;
-    }
-
+    if (!hasBoughtProduct && amountNum > max) { setShowWelcomeBonusWarning(true); return; }
     if (amountNum > max) {
       setError(`Insufficient eligible balance. Available: ${formatNaira(max)}`);
       return;
@@ -833,36 +925,20 @@ function WithdrawModal({
 
   if (showWelcomeBonusWarning) {
     return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-        <div className="glass-card w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+        <div className="bg-white w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 rounded-2xl" onClick={(e) => e.stopPropagation()}>
           <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-gold/15 border border-gold/40 flex items-center justify-center mx-auto mb-4">
-              <Shield size={32} className="text-gold" />
+            <div className="w-16 h-16 rounded-full bg-[#007A33]/15 border border-[#007A33]/40 flex items-center justify-center mx-auto mb-4">
+              <Shield size={32} className="text-[#007A33]" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-2">Welcome Bonus Locked</h2>
-            <p className="text-sm text-slate-400 mb-5">
-              Your <span className="text-gold font-semibold">₦1,500 welcome bonus</span> cannot be withdrawn yet.
-              You need to purchase an investment product first to unlock it.
-            </p>
-
-            <div className="p-4 rounded-xl bg-midnight-50/50 border border-obsidian-border/40 mb-5 text-left space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Wallet Balance</span>
-                <span className="text-sm font-semibold text-white">{formatNaira(walletBalance)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400">Welcome Bonus (Locked)</span>
-                <span className="text-sm font-semibold text-gold">{formatNaira(WELCOME_BONUS)}</span>
-              </div>
-              <div className="border-t border-obsidian-border/40 pt-2.5 flex items-center justify-between">
-                <span className="text-xs text-slate-400">Withdrawable Amount</span>
-                <span className="text-sm font-bold text-emerald">{formatNaira(max)}</span>
-              </div>
-            </div>
-
+            <h2 className="text-lg font-bold text-[#0A2A1A] mb-2">Welcome Bonus Locked</h2>
+           <p className="text-sm text-[#4A5A50] mb-5">
+  Your <span className="text-[#007A33] font-semibold">₦500 welcome bonus</span> cannot be withdrawn yet.
+  Purchase an investment product first to unlock it.
+</p>
             <div className="flex gap-3">
-              <button onClick={onClose} className="btn-ghost flex-1 py-3 text-sm">Close</button>
-              <button onClick={onClose} className="btn-gold flex-1 py-3 text-sm">Buy Product</button>
+              <button onClick={onClose} className="flex-1 py-3 text-sm rounded-xl border border-[#E8EDE8] text-[#4A5A50]">Close</button>
+              <button onClick={onClose} className="flex-1 py-3 text-sm rounded-xl bg-[#007A33] text-white font-bold">Buy Product</button>
             </div>
           </div>
         </div>
@@ -872,83 +948,71 @@ function WithdrawModal({
 
   if (step === 'bank') {
     return (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-        <div className="glass-card w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 animate-slide-up max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <h2 className="text-lg font-bold text-white mb-1">Select Bank</h2>
-          <p className="text-xs text-slate-400 mb-4">Choose your preferred bank for withdrawal</p>
-
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+        <div className="bg-white w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 rounded-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <h2 className="text-lg font-bold text-[#0A2A1A] mb-1">Select Bank</h2>
+          <p className="text-xs text-[#4A5A50] mb-4">Choose your bank for withdrawal</p>
           <div className="mb-4">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search banks..."
-              className="input-field text-sm"
+              className="w-full bg-[#F5F7F5] border border-[#E8EDE8] rounded-xl px-4 py-2.5 text-sm text-[#0A2A1A] outline-none"
             />
           </div>
-
           <div className="overflow-y-auto flex-1 -mx-2 px-2">
             <div className="space-y-2">
-              {filteredBanks.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-sm">
-                  No banks found matching "{searchQuery}"
-                </div>
-              ) : (
-                filteredBanks.map((bank) => (
-                  <button
-                    key={bank.code}
-                    onClick={() => handleBankSelect(bank)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-midnight-50/50 border border-obsidian-border/40 hover:border-gold/40 hover:bg-midnight-50/80 transition-all"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-obsidian-light/60 border border-obsidian-border flex items-center justify-center">
-                      <Building2 size={18} className="text-gold" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-semibold text-white">{bank.name}</p>
-                    </div>
-                    <ChevronRight size={18} className="text-slate-500" />
-                  </button>
-                ))
-              )}
+              {filteredBanks.map((bank) => (
+                <button
+                  key={bank.code}
+                  onClick={() => handleBankSelect(bank)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#F5F7F5] border border-[#E8EDE8]"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white border border-[#E8EDE8] flex items-center justify-center">
+                    <Building2 size={18} className="text-[#007A33]" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold text-[#0A2A1A]">{bank.name}</p>
+                  </div>
+                  <ChevronRight size={18} className="text-[#4A5A50]" />
+                </button>
+              ))}
             </div>
           </div>
-
-          <button onClick={onClose} className="btn-ghost w-full mt-4 py-3 text-sm">Cancel</button>
+          <button onClick={onClose} className="w-full mt-4 py-3 text-sm rounded-xl border border-[#E8EDE8] text-[#4A5A50]">Cancel</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div className="glass-card w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white w-full max-w-md mx-4 mb-4 sm:mb-0 p-6 rounded-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-5">
-          <button
-            onClick={() => setStep('bank')}
-            className="w-9 h-9 rounded-xl bg-obsidian-light/60 border border-obsidian-border flex items-center justify-center text-slate-400 hover:text-gold transition-colors"
-          >
+          <button onClick={() => setStep('bank')} className="w-9 h-9 rounded-xl bg-[#F5F7F5] border border-[#E8EDE8] flex items-center justify-center text-[#007A33]">
             <ChevronRight size={18} className="rotate-180" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-obsidian-light/60 border border-obsidian-border flex items-center justify-center">
-              <Building2 size={16} className="text-gold" />
+            <div className="w-9 h-9 rounded-xl bg-[#F5F7F5] border border-[#E8EDE8] flex items-center justify-center">
+              <Building2 size={16} className="text-[#007A33]" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white">{selectedBank?.name}</p>
-              <p className="text-[10px] text-slate-400">Selected Bank</p>
+              <p className="text-sm font-bold text-[#0A2A1A]">{selectedBank?.name}</p>
+              <p className="text-[10px] text-[#4A5A50]">Selected Bank</p>
             </div>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400 flex items-start gap-2">
+          <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-600 flex items-start gap-2">
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
         <div className="mb-3">
-          <label className="label-text">Account Number</label>
+          <label className="block text-[11px] font-semibold text-[#4A5A50] uppercase tracking-wide mb-1.5">Account Number</label>
           <input
             type="tel"
             inputMode="numeric"
@@ -956,102 +1020,70 @@ function WithdrawModal({
             value={accountNumber}
             onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ''))}
             placeholder="0123456789"
-            className="input-field"
+            className="w-full bg-[#F5F7F5] border border-[#E8EDE8] rounded-xl px-4 py-3 text-sm text-[#0A2A1A] outline-none"
           />
         </div>
 
         <div className="mb-3">
-          <label className="label-text">Account Name</label>
+          <label className="block text-[11px] font-semibold text-[#4A5A50] uppercase tracking-wide mb-1.5">Account Name</label>
           <input
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
             placeholder="John Doe"
-            className="input-field"
+            className="w-full bg-[#F5F7F5] border border-[#E8EDE8] rounded-xl px-4 py-3 text-sm text-[#0A2A1A] outline-none"
           />
         </div>
 
         <div className="mb-2">
-          <label className="label-text">Amount (₦)</label>
+          <label className="block text-[11px] font-semibold text-[#4A5A50] uppercase tracking-wide mb-1.5">Amount (₦)</label>
           <input
             type="number"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            className="input-field text-lg font-semibold"
+            className="w-full bg-[#F5F7F5] border border-[#E8EDE8] rounded-xl px-4 py-3 text-lg font-semibold text-[#0A2A1A] outline-none"
           />
-          <p className="text-xs text-slate-400 mt-1.5">
-            Available: <span className="text-gold font-semibold">{formatNaira(max)}</span>
+          <p className="text-xs text-[#4A5A50] mt-1.5">
+            Available: <span className="text-[#007A33] font-semibold">{formatNaira(max)}</span>
           </p>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          {[1500, 5000, 10000, 50000].map((v) => (
-            <button
-              key={v}
-              onClick={() => setAmount(String(v))}
-              className="text-xs py-2 rounded-lg bg-midnight-50/60 border border-obsidian-border text-slate-300 hover:border-gold/40 hover:text-gold transition-colors"
-            >
-              ₦{v.toLocaleString()}
-            </button>
-          ))}
-        </div>
+       <div className="grid grid-cols-4 gap-2 mb-4">
+  {[400, 5000, 10000, 50000].map((v) => (
+    <button
+      key={v}
+      onClick={() => setAmount(String(v))}
+      className="text-xs py-2 rounded-lg bg-[#F5F7F5] border border-[#E8EDE8] text-[#4A5A50]"
+    >
+      ₦{v.toLocaleString()}
+    </button>
+  ))}
+</div>
 
         {amountNum > 0 && (
-          <div className="mb-4 p-4 rounded-xl bg-midnight-50/50 border border-obsidian-border/40 space-y-2.5">
+          <div className="mb-4 p-4 rounded-xl bg-[#F5F7F5] border border-[#E8EDE8] space-y-2.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Withdrawal Amount</span>
-              <span className="text-white font-semibold">{formatNaira(amountNum)}</span>
+              <span className="text-[#4A5A50]">Withdrawal Amount</span>
+              <span className="text-[#0A2A1A] font-semibold">{formatNaira(amountNum)}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Processing Fee ({WITHDRAWAL_FEE_PERCENT}%)</span>
-              <span className="text-red-400 font-semibold">-{formatNaira(fee)}</span>
+              <span className="text-[#4A5A50]">Processing Fee ({WITHDRAWAL_FEE_PERCENT}%)</span>
+              <span className="text-red-500 font-semibold">-{formatNaira(fee)}</span>
             </div>
-            <div className="border-t border-obsidian-border/40 pt-2.5 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-300">You'll Receive</span>
-              <span className="text-lg font-bold text-emerald">{formatNaira(netAmount)}</span>
+            <div className="border-t border-[#E8EDE8] pt-2.5 flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#4A5A50]">You'll Receive</span>
+              <span className="text-lg font-bold text-[#007A33]">{formatNaira(netAmount)}</span>
             </div>
           </div>
         )}
-
-        {belowMinimum && (
-          <div className="mb-4 px-4 py-3 rounded-xl bg-gold/10 border border-gold/30 text-xs text-gold flex items-start gap-2">
-            <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
-            <span>Minimum withdrawal amount is {formatNaira(MINIMUM_WITHDRAWAL)}</span>
-          </div>
-        )}
-
-        {!hasBoughtProduct && (
-          <div className="mb-4 px-3 py-2.5 rounded-lg bg-gold/10 border border-gold/30 text-[11px] text-gold flex items-start gap-2">
-            <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
-            <span>Your ₦1,500 welcome bonus is locked. Purchase a product to unlock it.</span>
-          </div>
-        )}
-
-        <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-sky-500/10 to-blue-500/5 border border-sky-500/20">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center flex-shrink-0">
-              <Info size={16} className="text-sky-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-xs font-semibold text-sky-300 mb-1">Withdrawal Information</p>
-              <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc list-inside">
-                <li><span className="text-gold font-semibold">One withdrawal per 24 hours</span></li>
-                <li>Withdrawals are processed within <span className="text-sky-300 font-semibold">5 minutes</span> after admin approval</li>
-                <li>Your balance is deducted immediately when you submit</li>
-                <li>A <span className="text-gold font-semibold">{WITHDRAWAL_FEE_PERCENT}%</span> processing fee applies</li>
-                <li>Minimum withdrawal amount is <span className="text-gold font-semibold">{formatNaira(MINIMUM_WITHDRAWAL)}</span></li>
-              </ul>
-            </div>
-          </div>
-        </div>
 
         <div className="flex gap-3">
-          <button onClick={onClose} className="btn-ghost flex-1 py-3 text-sm">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-3 text-sm rounded-xl border border-[#E8EDE8] text-[#4A5A50]">Cancel</button>
           <button
             onClick={handleSubmit}
             disabled={loading || belowMinimum || amountNum <= 0}
-            className="btn-gold flex-1 py-3 text-sm"
+            className="flex-1 py-3 text-sm rounded-xl bg-[#007A33] text-white font-bold disabled:opacity-50"
           >
             {loading ? 'Processing...' : `Withdraw ${formatNaira(netAmount > 0 ? netAmount : 0)}`}
           </button>

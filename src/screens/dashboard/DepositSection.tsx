@@ -24,10 +24,6 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
       return;
     }
 
-    // 🔑 Get email safely:
-    // 1. Try Firebase Auth currentUser
-    // 2. Fall back to profile (in case you store it there)
-    // 3. Fall back to a generated placeholder
     const authEmail = auth.currentUser?.email;
     const profileEmail = (profile as any)?.email;
     const fallbackEmail = profile?.id ? `${profile.id}@sharpsharpone.com` : null;
@@ -38,7 +34,6 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
       setError('No email found on your account. Please log out and log in again.');
       return;
     }
-
     if (!profile?.id) {
       setError('Your profile is still loading. Please try again.');
       return;
@@ -48,7 +43,6 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
     setError('');
 
     try {
-      // 1. Create a pending deposit record in Firestore
       const depositRef = await addDoc(collection(db, 'transactions'), {
         user_id: profile.id,
         amount: Number(amount),
@@ -59,7 +53,6 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
         created_at: serverTimestamp(),
       });
 
-      // 2. Initialize Paystack payment (bank_transfer only)
       const result = await initializePayment({
         email,
         amount: Number(amount),
@@ -72,7 +65,6 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
         return;
       }
 
-      // 3. Save the Paystack reference so the callback page can match it
       await addDoc(collection(db, 'paystack_refs'), {
         reference: result.reference,
         transaction_id: depositRef.id,
@@ -82,7 +74,6 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
         created_at: serverTimestamp(),
       });
 
-      // 4. Redirect to Paystack checkout
       window.location.href = result.authorization_url;
     } catch (err) {
       console.error('Paystack deposit error:', err);
@@ -96,12 +87,12 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-400/30 flex items-center justify-center">
-          <ArrowDownToLine size={20} className="text-emerald-400" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00A04A]/20 to-[#007A33]/10 border border-[#00A04A]/30 flex items-center justify-center">
+          <ArrowDownToLine size={20} className="text-[#00A04A]" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-white">Deposit Funds</h3>
-          <p className="text-xs text-slate-400">Minimum deposit: ₦5,000</p>
+          <h3 className="text-sm font-bold text-[#0A2A1A]">Deposit Funds</h3>
+          <p className="text-xs text-[#4A5A50]">Minimum deposit: ₦5,000</p>
         </div>
       </div>
 
@@ -110,68 +101,44 @@ export const DepositSection: React.FC<DepositSectionProps> = ({ onClose }) => {
         <input
           type="number"
           value={amount}
-          onChange={(e) => {
-            const val = parseFloat(e.target.value);
-            setAmount(isNaN(val) ? '' : val);
-          }}
+          onChange={(e) => { const val = parseFloat(e.target.value); setAmount(isNaN(val) ? '' : val); }}
           placeholder="0.00"
           className="input-field text-lg font-semibold"
           min={MIN_DEPOSIT}
           step="500"
         />
         {error && (
-          <p className="text-red-400 text-xs mt-1 flex items-center gap-1">
-            <AlertCircle size={12} />
-            {error}
+          <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+            <AlertCircle size={12} />{error}
           </p>
         )}
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         {quickAmounts.map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setAmount(v)}
-            className="text-xs py-2 rounded-lg bg-midnight-50/60 border border-obsidian-border text-slate-300 hover:border-emerald-400/40 hover:text-emerald-400 transition-colors"
-          >
+          <button key={v} type="button" onClick={() => setAmount(v)}
+            className="text-xs py-2 rounded-lg bg-[#F5F7F5] border border-[#E8EDE8] text-[#4A5A50] hover:border-[#00A04A]/40 hover:text-[#00A04A] transition-colors">
             ₦{v.toLocaleString()}
           </button>
         ))}
       </div>
 
-      <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 flex items-start gap-2.5">
-        <CreditCard size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
-        <p className="text-xs text-slate-400 leading-relaxed">
-          You'll be redirected to Paystack's secure checkout to complete a <span className="text-emerald-400 font-semibold">bank transfer</span>.
-          Minimum deposit is <span className="text-emerald-400 font-semibold">₦5,000</span>.
+      <div className="bg-[#007A33]/5 border border-[#007A33]/20 rounded-xl p-3 flex items-start gap-2.5">
+        <CreditCard size={16} className="text-[#007A33] flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-[#4A5A50] leading-relaxed">
+          You'll be redirected to Paystack's secure checkout to complete a <span className="text-[#00A04A] font-semibold">bank transfer</span>.
+          Minimum deposit is <span className="text-[#00A04A] font-semibold">₦5,000</span>.
           Your wallet will be credited automatically once the payment is confirmed — no admin approval needed.
         </p>
       </div>
 
       <div className="flex gap-3">
         {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn-ghost flex-1 py-3 text-sm"
-          >
-            Cancel
-          </button>
+          <button type="button" onClick={onClose} className="btn-ghost flex-1 py-3 text-sm">Cancel</button>
         )}
-        <button
-          type="button"
-          onClick={handlePayWithPaystack}
-          disabled={loading || !amount}
-          className="btn-emerald flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {loading ? (
-            <>
-              <Loader2 size={16} className="animate-spin" /> Processing...
-            </>
-          ) : (
-            <>Pay {amount ? formatNaira(Number(amount)) : ''}</>
-          )}
+        <button type="button" onClick={handlePayWithPaystack} disabled={loading || !amount}
+          className="btn-emerald flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50">
+          {loading ? (<><Loader2 size={16} className="animate-spin" /> Processing...</>) : (<>Pay {amount ? formatNaira(Number(amount)) : ''}</>)}
         </button>
       </div>
     </div>

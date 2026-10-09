@@ -8,17 +8,23 @@
   html {
     -webkit-tap-highlight-color: transparent;
   }
+
   body {
-    @apply bg-midnight text-slate-200 font-sans antialiased;
-    background-color: #0B0E14;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #F5F7F5;
     background-image:
-      radial-gradient(circle at 15% 10%, rgba(212, 175, 55, 0.06) 0%, transparent 40%),
-      radial-gradient(circle at 85% 90%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+      radial-gradient(circle at 15% 10%, rgba(0, 122, 51, 0.06) 0%, transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(0, 160, 74, 0.05) 0%, transparent 40%);
     background-attachment: fixed;
+    color: #0A2A1A;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
   input, select, textarea {
     @apply outline-none;
   }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -27,30 +33,167 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-obsidian-border rounded-full;
+    background-color: #C8D4CB;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #007A33;
   }
 }
 
 @layer components {
+  /* ---------- CARDS ---------- */
   .glass-card {
-    @apply bg-obsidian border border-obsidian-border/60 rounded-2xl shadow-card backdrop-blur-sm;
+    background-color: #FFFFFF;
+    border: 1px solid #E8EDE8;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 122, 51, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
   }
+
   .glass-card-hover {
-    @apply glass-card transition-all duration-300 hover:border-gold/40 hover:shadow-gold-glow;
+    @apply glass-card transition-all duration-300;
   }
+  .glass-card-hover:hover {
+    border-color: rgba(0, 122, 51, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 122, 51, 0.12);
+  }
+
+  /* ---------- INPUTS ---------- */
   .input-field {
-    @apply w-full bg-midnight-50/70 border border-obsidian-border/80 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 transition-all duration-200 focus:border-gold/60 focus:ring-1 focus:ring-gold/40;
+    width: 100%;
+    background-color: #F5F7F5;
+    border: 1px solid #E8EDE8;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: #0A2A1A;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
   }
+  .input-field::placeholder {
+    color: #8A9A90;
+  }
+  .input-field:focus {
+    border-color: #007A33;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(0, 122, 51, 0.12);
+  }
+
+  /* ---------- BUTTONS ---------- */
   .btn-gold {
-    @apply bg-gradient-to-r from-gold-dark to-gold-light text-midnight font-semibold rounded-xl py-3.5 px-6 transition-all duration-300 hover:shadow-gold-glow hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none;
+    background-color: #007A33;
+    color: #FFFFFF;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    padding: 0.875rem 1.5rem;
+    transition: all 0.25s ease;
+    border: none;
+    cursor: pointer;
   }
+  .btn-gold:hover:not(:disabled) {
+    background-color: #005A26;
+    box-shadow: 0 6px 20px rgba(0, 122, 51, 0.25);
+    transform: translateY(-1px);
+  }
+  .btn-gold:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn-gold:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
   .btn-emerald {
-    @apply bg-gradient-to-r from-emerald-dark to-emerald-light text-white font-semibold rounded-xl py-3.5 px-6 transition-all duration-300 hover:shadow-emerald-glow hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #00A04A;
+    color: #FFFFFF;
+    font-weight: 600;
+    border-radius: 0.75rem;
+    padding: 0.875rem 1.5rem;
+    transition: all 0.25s ease;
+    border: none;
+    cursor: pointer;
   }
+  .btn-emerald:hover:not(:disabled) {
+    background-color: #007A33;
+    box-shadow: 0 6px 20px rgba(0, 160, 74, 0.25);
+    transform: translateY(-1px);
+  }
+  .btn-emerald:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn-emerald:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
   .btn-ghost {
-    @apply bg-obsidian-light/60 border border-obsidian-border text-slate-200 font-medium rounded-xl py-3.5 px-6 transition-all duration-200 hover:border-gold/40 hover:text-gold active:scale-[0.98];
+    background-color: #F5F7F5;
+    color: #4A5A50;
+    border: 1px solid #E8EDE8;
+    font-weight: 500;
+    border-radius: 0.75rem;
+    padding: 0.875rem 1.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
   }
+  .btn-ghost:hover:not(:disabled) {
+    background-color: #E8EDE8;
+    border-color: rgba(0, 122, 51, 0.3);
+    color: #007A33;
+  }
+  .btn-ghost:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ---------- LABEL ---------- */
   .label-text {
-    @apply block text-sm font-medium text-slate-400 mb-1.5;
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4A5A50;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.375rem;
+  }
+
+  /* ---------- ANIMATIONS (preserved) ---------- */
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out both;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out both;
+  }
+  .animate-pulse-gold {
+    animation: pulseGold 1.8s ease-in-out infinite;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes pulseGold {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(0, 122, 51, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(0, 122, 51, 0);
+    }
   }
 }

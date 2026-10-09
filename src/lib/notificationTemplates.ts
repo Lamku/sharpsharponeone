@@ -51,7 +51,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     label: 'Withdrawal Processed',
     type: 'success',
     title: 'Withdrawal Processed',
-    message: 'Your withdrawal has been sent to your bank account. Thank you for using Sharpsharpone.',
+    message: 'Your withdrawal has been sent to your bank account. Thank you for choosing Heineken.',
   },
   {
     id: 'withdrawal_rejected',
@@ -184,10 +184,10 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
   {
     id: 'welcome',
     category: '⚠️ Account',
-    label: 'Welcome to Sharpsharpone',
+    label: 'Welcome to Heineken',
     type: 'success',
-    title: 'Welcome to Sharpsharpone!',
-    message: 'Your account is ready. You have a ₦1,500 welcome bonus in your wallet. Start investing today!',
+    title: 'Welcome to Heineken!',
+    message: 'Your account is ready. You have a ₦500 welcome bonus in your wallet. Start investing today!',
   },
   {
     id: 'account_suspended',
@@ -195,7 +195,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     label: 'Account Suspended',
     type: 'error',
     title: 'Account Suspended',
-    message: 'Your account has been suspended due to suspicious activity. Contact support at support@sharpsharpone.app for assistance.',
+    message: 'Your account has been suspended due to suspicious activity. Contact support at support@heineken.app for assistance.',
   },
   {
     id: 'account_reactivated',
@@ -203,7 +203,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     label: 'Account Reactivated',
     type: 'success',
     title: 'Account Reactivated',
-    message: 'Your account has been reactivated. Welcome back to Sharpsharpone!',
+    message: 'Your account has been reactivated. Welcome back to Heineken!',
   },
   {
     id: 'account_verification',
@@ -211,7 +211,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     label: 'Verification Required',
     type: 'warning',
     title: 'Account Verification Required',
-    message: 'Please verify your account to continue enjoying full access to Sharpsharpone features.',
+    message: 'Please verify your account to continue enjoying full access to Heineken features.',
   },
   {
     id: 'account_bank_update',
@@ -281,7 +281,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     label: 'Merry Christmas',
     type: 'success',
     title: '🎄 Merry Christmas!',
-    message: 'From all of us at Sharpsharpone, we wish you a Merry Christmas and a prosperous New Year. Enjoy a special ₦1,000 bonus on us!',
+    message: 'From all of us at Heineken, we wish you a Merry Christmas and a prosperous New Year. Enjoy a special ₦1,000 bonus on us!',
   },
   {
     id: 'festive_new_year',
@@ -323,7 +323,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     label: 'System Update',
     type: 'info',
     title: 'System Update',
-    message: 'Sharpsharpone has been updated with new features. Refresh your app to see them!',
+    message: 'Heineken has been updated with new features. Refresh your app to see them!',
   },
   {
     id: 'update_maintenance',
@@ -339,7 +339,7 @@ export const NOTIFICATION_TEMPLATES: NotificationTemplate[] = [
     label: 'Customer Support',
     type: 'info',
     title: 'Customer Support',
-    message: 'Need help? Contact us at support@sharpsharpone.app or call 08012345678. We are here 24/7.',
+    message: 'Need help? Contact us at support@heineken.app or call 08012345678. We are here 24/7.',
   },
 
   // ============ MOTIVATIONAL ============
