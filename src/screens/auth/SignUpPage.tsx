@@ -4,7 +4,6 @@ import { Lock, Eye, EyeOff, User, Phone, Gift, CheckCircle2 } from 'lucide-react
 import { useAuth } from '@/context/AuthContext';
 import { Logo } from '@/components/Logo';
 
-// ⭐ Use your own image from /public/portfolio/
 const HERO_IMAGE = '/portfolio/slide-1.png';
 
 export function SignUpPage() {
@@ -59,7 +58,6 @@ export function SignUpPage() {
     }
   };
 
-  // ============ SUCCESS SCREEN ============
   if (success) {
     return (
       <div className="min-h-screen flex flex-col bg-[#F5F7F5]">
@@ -87,7 +85,7 @@ export function SignUpPage() {
                 style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}
               >
                 Your Heineken account is ready with a{' '}
-                <span className="text-[#00A04A] font-bold">₦1,500 welcome bonus</span> credited
+                <span className="text-[#00A04A] font-bold">₦500 welcome bonus</span> credited
                 to your wallet. Taking you to your dashboard...
               </p>
             </div>
@@ -97,7 +95,6 @@ export function SignUpPage() {
     );
   }
 
-  // ============ SIGNUP FORM ============
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F7F5]">
       <div className="flex-1 flex flex-col justify-center px-6 pb-10 max-w-md mx-auto w-full pt-10">

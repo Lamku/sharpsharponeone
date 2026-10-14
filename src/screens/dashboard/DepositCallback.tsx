@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { notifyDeposit } from '@/lib/telegram';
+import { payReferralCommission } from '@/lib/referral';
 import {
   collection, query, where, getDocs, getDoc, updateDoc, doc,
   addDoc, serverTimestamp, runTransaction,
@@ -247,7 +248,9 @@ export const DepositCallback: React.FC = () => {
   );
 };
 
-// ⚠️ LOGIC UNCHANGED — only colors are irrelevant here (no UI)
+// ==========================================
+// creditUser — kept local (no external equivalent)
+// ==========================================
 async function creditUser(userId: string, amount: number, reference: string) {
   await runTransaction(db, async (transaction) => {
     const userRef = doc(db, 'users', userId);
@@ -288,82 +291,5 @@ async function creditUser(userId: string, amount: number, reference: string) {
     });
   } catch (notifErr) {
     console.warn('[DepositCallback] Notification failed (non-fatal):', notifErr);
-  }
-}
-
-async function payReferralCommission(
-  referredUserId: string,
-  depositAmount: number
-): Promise<{ paid: boolean; commission?: number; referrerId?: string; reason?: string }> {
-  try {
-    if (depositAmount <= 0) return { paid: false, reason: 'Zero deposit' };
-
-    const referredUserRef = doc(db, 'users', referredUserId);
-    const referredUserSnap = await getDoc(referredUserRef);
-    if (!referredUserSnap.exists()) return { paid: false, reason: 'User not found' };
-
-    const referredData = referredUserSnap.data();
-    const referrerCode = referredData?.referred_by;
-
-    if (!referrerCode) return { paid: false, reason: 'No referrer' };
-    if (referredData?.referral_commission_paid) return { paid: false, reason: 'Already paid' };
-
-    const q = query(collection(db, 'users'), where('referral_code', '==', referrerCode));
-    const snap = await getDocs(q);
-    if (snap.empty) return { paid: false, reason: 'Referrer not found' };
-
-    const referrerId = snap.docs[0].id;
-    const referrerRef = doc(db, 'users', referrerId);
-
-    const commission = depositAmount * 0.4;
-
-    await runTransaction(db, async (transaction) => {
-      const freshReferred = await transaction.get(referredUserRef);
-      if (!freshReferred.exists()) throw new Error('Referred user missing');
-      if (freshReferred.data()?.referral_commission_paid) throw new Error('ALREADY_PAID');
-
-      const freshReferrer = await transaction.get(referrerRef);
-      if (!freshReferrer.exists()) throw new Error('Referrer missing');
-
-      const referrerData = freshReferrer.data();
-
-      transaction.update(referrerRef, {
-        wallet_balance: (referrerData?.wallet_balance || 0) + commission,
-        portfolio_value: (referrerData?.portfolio_value || 0) + commission,
-        total_referral_earnings: (referrerData?.total_referral_earnings || 0) + commission,
-      });
-
-      transaction.update(referredUserRef, {
-        referral_commission_paid: true,
-        referral_commission_amount: commission,
-        referral_commission_paid_at: serverTimestamp(),
-      });
-
-      const txRef = doc(collection(db, 'transactions'));
-      transaction.set(txRef, {
-        user_id: referrerId,
-        amount: commission,
-        type: 'referral',
-        description: '40% referral commission from a referred user deposit',
-        status: 'successful',
-        created_at: serverTimestamp(),
-      });
-
-      const notifRef = doc(collection(db, 'notifications'));
-      transaction.set(notifRef, {
-        user_id: referrerId,
-        title: '💰 Referral Commission Earned',
-        message: `You earned ₦${commission.toLocaleString()} (40%) from a referred user's deposit.`,
-        type: 'referral',
-        read: false,
-        created_at: serverTimestamp(),
-      });
-    });
-
-    return { paid: true, commission, referrerId };
-  } catch (err: any) {
-    if (err?.message === 'ALREADY_PAID') return { paid: false, reason: 'Already paid' };
-    console.error('payReferralCommission error:', err);
-    return { paid: false, reason: err?.message || 'Unknown error' };
   }
 }

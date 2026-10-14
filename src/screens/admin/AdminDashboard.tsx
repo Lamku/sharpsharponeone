@@ -598,7 +598,7 @@ useEffect(() => {
           throw new Error('ALREADY_CREDITED');
         }
 
-        // ⭐ Pay 40% referral commission (once per referred user)
+        // ⭐ Pay 35% referral commission (once per referred user)
 try {
   const referredRef = doc(db, 'users', deposit.user_id);
   const referredSnap = await getDoc(referredRef);
@@ -612,8 +612,7 @@ try {
     if (!snap.empty) {
       const referrerId = snap.docs[0].id;
       const referrerRef = doc(db, 'users', referrerId);
-      const commission = deposit.amount * 0.4;
-
+const commission = deposit.amount * 0.35;
       await runTransaction(db, async (transaction) => {
         const freshReferred = await transaction.get(referredRef);
         if (freshReferred.data()?.referral_commission_paid) {
@@ -640,7 +639,7 @@ try {
           user_id: referrerId,
           amount: commission,
           type: 'referral',
-          description: '40% referral commission from a referred user deposit',
+          description: '35% referral commission from a referred user deposit',
           status: 'successful',
           created_at: serverTimestamp(),
         });
@@ -649,7 +648,7 @@ try {
         transaction.set(notifRef, {
           user_id: referrerId,
           title: '💰 Referral Commission Earned',
-          message: `You earned ₦${commission.toLocaleString()} (40%) from a referred user's deposit.`,
+          message: `You earned ₦${commission.toLocaleString()} (35%) from a referred user's deposit.`,
           type: 'referral',
           read: false,
           created_at: serverTimestamp(),

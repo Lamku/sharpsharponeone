@@ -25,17 +25,12 @@ import {
   where
 } from 'firebase/firestore';
 
-/**
- * Firebase Auth requires an email address. Since TerraVault is phone-only,
- * we synthesize a deterministic email from the phone number.
- */
 const PHONE_DOMAIN = 'terravault.app';
 
 export function phoneToEmail(phone: string): string {
   return `${phone}@${PHONE_DOMAIN}`;
 }
 
-/** Normalize a Nigerian phone number to +234XXXXXXXXXX format. */
 export function normalizePhone(input: string): string {
   let p = input.replace(/[\s\-()]/g, '');
   if (p.startsWith('+234')) return p;
@@ -54,8 +49,8 @@ export interface Profile {
   last_check_in: any;
   referral_code: string;
   referred_by: string | null;
-  referral_commission_paid: boolean;      // ⭐ NEW
-  total_referral_earnings: number;        // ⭐ NEW
+  referral_commission_paid: boolean;
+  total_referral_earnings: number;
   welcome_bonus_claimed: boolean;
   created_at: any;
   updated_at: any;
@@ -207,20 +202,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const normalized = normalizePhone(params.phone);
         const email = phoneToEmail(normalized);
 
-        // Check if user already exists
         const exists = await checkUserExists(params.phone);
         if (exists) {
           return { error: 'An account with this phone number already exists. Please sign in.' };
         }
 
-        // Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, params.password);
         const user = userCredential.user;
 
-        // Generate referral code for the new user
         const referralCode = `TV${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-        // ⭐ Validate the incoming referral code (if provided)
         let validReferrerCode: string | null = null;
         if (params.referralCode && params.referralCode.trim()) {
           const incoming = params.referralCode.trim().toUpperCase();
@@ -232,7 +223,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Create user profile in Firestore
         await runTransaction(db, async (transaction) => {
           const userRef = doc(db, 'users', user.uid);
 
@@ -241,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error('User already exists');
           }
 
-          const welcomeBonus = 1500;
+          const welcomeBonus = 500;
 
           transaction.set(userRef, {
             id: user.uid,
@@ -251,15 +241,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             portfolio_value: welcomeBonus,
             last_check_in: null,
             referral_code: referralCode,
-            referred_by: validReferrerCode,           // ⭐ store the CODE (not ID)
-            referral_commission_paid: false,          // ⭐ not paid yet
-            total_referral_earnings: 0,               // ⭐ default
+            referred_by: validReferrerCode,
+            referral_commission_paid: false,
+            total_referral_earnings: 0,
             welcome_bonus_claimed: true,
             created_at: serverTimestamp(),
             updated_at: serverTimestamp(),
           });
 
-          // Welcome bonus transaction
           const transactionRef = doc(collection(db, 'transactions'));
           transaction.set(transactionRef, {
             user_id: user.uid,

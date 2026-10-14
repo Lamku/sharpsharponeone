@@ -44,8 +44,8 @@ export async function payReferralCommission(
     const referrerId = snap.docs[0].id;
     const referrerRef = doc(db, 'users', referrerId);
 
-    // Commission calculation
-    const commission = depositAmount * 0.4;
+    // ⭐ Commission = 35% of deposit
+    const commission = depositAmount * 0.35;
 
     await runTransaction(db, async (transaction) => {
       // Re-read both inside the transaction to prevent races
@@ -80,7 +80,7 @@ export async function payReferralCommission(
         user_id: referrerId,
         amount: commission,
         type: 'referral',
-        description: 'Referral commission from a referred user deposit',
+        description: '35% referral commission from a referred user deposit',
         status: 'successful',
         created_at: serverTimestamp(),
       });
@@ -90,7 +90,7 @@ export async function payReferralCommission(
       transaction.set(notifRef, {
         user_id: referrerId,
         title: '💰 Referral Commission Earned',
-        message: `You earned ₦${commission.toLocaleString()} from a referred user's deposit.`,
+        message: `You earned ₦${commission.toLocaleString()} (35%) from a referred user's deposit.`,
         type: 'success',
         read: false,
         created_at: serverTimestamp(),
